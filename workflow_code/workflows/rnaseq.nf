@@ -321,7 +321,7 @@ workflow RNASEQ {
                     .combine( ch_meta.map { meta -> meta.has_ercc } )
                     .filter { _row, has -> !has }
                     .map { row, _has -> row.refs }
-            )
+            ).first()
 
             if ( ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
                 GTF_TO_PRED(
@@ -338,7 +338,7 @@ workflow RNASEQ {
                     reference_version,
                     GTF_TO_PRED.out.genome_pred
                 )
-                genome_bed = PRED_TO_BED.out.genome_bed
+                genome_bed = PRED_TO_BED.out.genome_bed.first()
                 ch_versions = ch_versions.mix(GTF_TO_PRED.out.versions).mix(PRED_TO_BED.out.versions)
             }
         }
@@ -386,7 +386,7 @@ workflow RNASEQ {
                     | set { raw_fastqc_zip }
 
                 GET_MAX_READ_LENGTH( raw_fastqc_zip )
-                max_read_length = GET_MAX_READ_LENGTH.out.length | map { n -> n.toString().toInteger() }
+                max_read_length = GET_MAX_READ_LENGTH.out.length | map { n -> n.toString().toInteger() } | first
 
                 TRIMGALORE( STAGE.out.raw_reads )
                 trimmed_reads = TRIMGALORE.out.reads
@@ -420,7 +420,7 @@ workflow RNASEQ {
                     | set { trimmed_fastqc_zip }
 
                 GET_MAX_READ_LENGTH( trimmed_fastqc_zip )
-                max_read_length = GET_MAX_READ_LENGTH.out.length | map { n -> n.toString().toInteger() }
+                max_read_length = GET_MAX_READ_LENGTH.out.length | map { n -> n.toString().toInteger() } | first
 
                 TRIMMED_READS_MULTIQC( samples_txt, trimmed_fastqc_zip, ch_multiqc_config, "trimmed_")
                 ch_versions = ch_versions.mix(TRIMMED_READS_MULTIQC.out.versions)
@@ -433,7 +433,7 @@ workflow RNASEQ {
 
             if ( microbes ) {
                 BUILD_BOWTIE2_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta )
-                ALIGN_BOWTIE2( trimmed_reads, BUILD_BOWTIE2_INDEX.out.index_dir )
+                ALIGN_BOWTIE2( trimmed_reads, BUILD_BOWTIE2_INDEX.out.index_dir.first() )
                 SORT_AND_INDEX_BAM( ALIGN_BOWTIE2.out.bam )
                 ALIGN_MULTIQC( samples_txt, ALIGN_BOWTIE2.out.alignment_logs.map { _m, f -> f } | collect, ch_multiqc_config, "align_")
 
@@ -449,7 +449,7 @@ workflow RNASEQ {
                     .mix( pub_mqc(ALIGN_MULTIQC.out, ch_root, '02-Bowtie2_Alignment/MultiQC_Reports') )
             } else {
                 BUILD_STAR_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta, max_read_length )
-                ALIGN_STAR( trimmed_reads, BUILD_STAR_INDEX.out.index_dir )
+                ALIGN_STAR( trimmed_reads, BUILD_STAR_INDEX.out.index_dir.first() )
                 SORT_AND_INDEX_BAM( ALIGN_STAR.out.bam_by_coord )
                 ALIGN_MULTIQC( samples_txt, ALIGN_STAR.out.alignment_logs | collect, ch_multiqc_config, "align_")
 
@@ -481,7 +481,7 @@ workflow RNASEQ {
             if ( strandedness_set() ) {
                 strandedness = channel.value(convert_strandedness(params.strandedness))
             } else {
-                strandedness = ASSESS_STRANDEDNESS.out | map { f -> f.text.split(":")[0] }
+                strandedness = ASSESS_STRANDEDNESS.out | map { f -> f.text.split(":")[0] } | first
             }
 
             INFER_EXPERIMENT_MULTIQC( samples_txt, INFER_EXPERIMENT.out.log | map { row -> row[1] } | collect, ch_multiqc_config, "infer_exp_")
@@ -528,7 +528,7 @@ workflow RNASEQ {
 
                 def tx_bam = ep == 'bam_files' ? STAGE.out.bam_files : bam_to_transcriptome
                 BUILD_RSEM_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta )
-                COUNT_ALIGNED( tx_bam, BUILD_RSEM_INDEX.out.index_dir, strandedness )
+                COUNT_ALIGNED( tx_bam, BUILD_RSEM_INDEX.out.index_dir.first(), strandedness )
                 genes_results = COUNT_ALIGNED.out.genes_results
                 rsem_counts = COUNT_ALIGNED.out.counts | map { row -> row[1] } | collect
                 QUANTIFY_RSEM_GENES( samples_txt, rsem_counts )
