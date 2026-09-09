@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `-profile pbspro`. PBS `ncpus`/`mem` go in `clusterOptions`; `cpus`/`memory` stay for `task.*`. Optional `--pbs_internet_queue` for fetch/download jobs.
 - Add `-profile podman`.
 - Fetch remote annotation tables and references in worker processes.
+- Rename `stage_raw_reads.nf` to `stage_reads.nf` (raw and trimmed).
 
 ### Fixed
 
