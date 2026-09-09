@@ -26,8 +26,7 @@ if (params.limit_samples_to || params.truncate_to || params.force_single_end || 
 }
 
 include { RNASEQ } from './workflows/rnaseq.nf'
-include { RNASEQ_MICROBES } from './workflows/rnaseq_microbes.nf'
-include { STAGE_ANALYSIS } from './subworkflows/stage_analysis.nf'
+include { STAGE } from './subworkflows/stage.nf'
 
 include { GENERATE_MD5SUMS } from './modules/generate_md5sums.nf'
 include { UPDATE_ASSAY_TABLE } from './modules/update_assay_table.nf'
@@ -45,74 +44,32 @@ ch_isa_archive = params.isa_archive_path ? Channel.fromPath(params.isa_archive_p
 ch_reference_table = Channel.value(params.reference_table)
 ch_api_url = Channel.value(params.api_url)
 
-ch_truncate_to = Channel.value(params.truncate_to)
-ch_genome_subsample = Channel.value(params.genome_subsample)
-ch_force_single_end = Channel.value(params.force_single_end)
-
 ch_reference_store_path = Channel.value(params.reference_store_path)
 ch_derived_store_path = Channel.value(params.derived_store_path)
-
-// set entry point param
-ch_entry_point = params.entry_point ? Channel.value(params.entry_point) : Channel.value('auto-detect')
-
-// set reference params
-ch_reference_source = params.reference_source ? Channel.value(params.reference_source) : null
-ch_reference_version = params.reference_version ? Channel.value(params.reference_version) : null
-ch_reference_fasta = params.reference_fasta ? Channel.fromPath(params.reference_fasta) : null
-ch_reference_gtf = params.reference_gtf ? Channel.fromPath(params.reference_gtf) : null
 
 // Set outdir based on the presence of an accession input.. currently not implemented as nextflow.config's outdir is only used for nextflow run info
 //  and ch_outdir is used for all processes' publishDir in order to set either ./results or ./{accession}
 ch_outdir = params.outdir ? channel.fromPath(params.outdir, checkIfExists: true) : null
 
-// Main workflows
 workflow {
-    if (params.mode == 'microbes') {
-        RNASEQ_MICROBES(
-            ch_outdir,
-            ch_dp_tools_plugin,
-            ch_reference_table,
-            ch_accession,
-            ch_isa_archive,
-            ch_runsheet,
-            ch_api_url,
-            ch_force_single_end,
-            ch_truncate_to,
-            ch_reference_source,
-            ch_reference_version,
-            ch_reference_fasta,
-            ch_reference_gtf,
-            ch_reference_store_path,
-            ch_derived_store_path,
-            ch_entry_point
-        )
-    } else {
-        RNASEQ(
-            ch_outdir,
-            ch_dp_tools_plugin,
-            ch_reference_table,
-            ch_accession,
-            ch_isa_archive,
-            ch_runsheet,
-            ch_api_url,
-            ch_force_single_end,
-            ch_truncate_to,
-            ch_reference_source,
-            ch_reference_version,
-            ch_reference_fasta,
-            ch_reference_gtf,
-            ch_reference_store_path,
-            ch_derived_store_path,
-            ch_entry_point
-        )
-    }
+    RNASEQ(
+        ch_outdir,
+        ch_dp_tools_plugin,
+        ch_reference_table,
+        ch_accession,
+        ch_isa_archive,
+        ch_runsheet,
+        ch_api_url,
+        ch_reference_store_path,
+        ch_derived_store_path
+    )
 }
 
 // Workflow that only runs the initial staging steps:
 //  Get the runsheet and raw reads (with debug parameters applied if applicable) and publish them to the output directory
 workflow STAGE_ONLY {
     main:
-        STAGE_ANALYSIS(
+        STAGE(
             ch_outdir,
             ch_dp_tools_plugin,
             ch_accession,
@@ -121,9 +78,9 @@ workflow STAGE_ONLY {
             ch_api_url
         )
         PUBLISH_STAGED_ANALYSIS(
-            STAGE_ANALYSIS.out.ch_outdir,
-            STAGE_ANALYSIS.out.runsheet_path,
-            STAGE_ANALYSIS.out.raw_reads.map { it -> it[1] }.collect()
+            STAGE.out.ch_outdir,
+            STAGE.out.runsheet_path,
+            STAGE.out.raw_reads.map { it -> it[1] }.collect()
         )
 }
 
