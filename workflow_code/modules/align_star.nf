@@ -2,22 +2,16 @@ process ALIGN_STAR {
   // Aligns reads against STAR index
   tag "Sample: ${ meta.id }"
 
-  publishDir path: { "${ publishdir }" },
-    pattern: { "${ meta.id }/**" },
-    mode: params.publish_dir_mode
-
   input:
-    val(publishdir)
     tuple val( meta ), path( reads )
     path(star_index_dir)
 
   output:
-    path("${ meta.id }/${ meta.id }${ params.assay_suffix }*"), emit: publishables // used to ensure direct files are available for publishing directive
+    path("${ meta.id }/${ meta.id }${ params.assay_suffix }*"), emit: publishables
     path("${ meta.id }/${ meta.id }${ params.assay_suffix }_Log.final.out"), emit: alignment_logs
     tuple val(meta), path("${ meta.id }/${ meta.id }${ params.assay_suffix }_Aligned.sortedByCoord.out.bam"), emit: bam_by_coord
     tuple val(meta), path("${ meta.id }/${ meta.id }${ params.assay_suffix }_Aligned.toTranscriptome.out.bam"), emit: bam_to_transcriptome
     path("${ meta.id }/${ meta.id }${ params.assay_suffix }_ReadsPerGene.out.tab"), emit: reads_per_gene
-    path("${ meta.id }/${ meta.id }${ params.assay_suffix }_*unmapped.fastq.gz"), emit: unmapped_reads
     path("versions.yml"), emit: versions
 
   script:

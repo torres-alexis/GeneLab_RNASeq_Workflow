@@ -1,17 +1,5 @@
 process PARSE_QC_METRICS {
-    publishDir path: { "${ publishdir }/GeneLab" },
-        mode: params.publish_dir_mode,
-        pattern: "qc_metrics*"
-
-    publishDir path: { "${ publishdir }/Metadata" },
-        mode: params.publish_dir_mode,
-        pattern: "isa_archive/*",
-        saveAs: { filename ->
-            filename.startsWith("isa_archive/") ? filename.replace("isa_archive/", "") : filename
-        }
-
     input:
-        val(publishdir)
         val(osd_accession)
         val(meta)
         path(isa_zip)
@@ -21,7 +9,7 @@ process PARSE_QC_METRICS {
 
     output:
         path("qc_metrics${params.assay_suffix}.csv"), emit: file
-        path("isa_archive/*"), optional: true
+        path("isa_archive/*"), optional: true, emit: metadata_copy
 
     script:
         def assay_suffix_arg = params.assay_suffix ? "--assay_suffix ${params.assay_suffix}" : ""

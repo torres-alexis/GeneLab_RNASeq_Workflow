@@ -86,10 +86,11 @@ def should_include(filepath, outdir):
     # Skip ISA.zip
     if filepath.endswith("ISA.zip"):
         return False
-    # Skip STAR_NumNonZeroGenes and RSEM_NumNonZeroGenes files
+    # Skip NumNonZeroGenes files (STAR / RSEM / FeatureCounts)
     if basename in [
         f"STAR_NumNonZeroGenes{args.assay_suffix}.csv",
-        f"RSEM_NumNonZeroGenes{args.assay_suffix}.csv"
+        f"RSEM_NumNonZeroGenes{args.assay_suffix}.csv",
+        f"NumNonZeroGenes{args.assay_suffix}.csv"
     ]:
         return False
     return True
