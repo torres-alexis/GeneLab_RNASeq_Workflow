@@ -1373,48 +1373,66 @@ def add_raw_counts_tables_column(df, glds_prefix, assay_suffix, mode=""):
     
     return df
 
-def add_normalized_counts_data_column(df, glds_prefix, assay_suffix):
+def find_published_csvs(outdir, dir_name, name_prefixes, assay_suffix):
+    found = []
+    d = os.path.join(outdir, dir_name) if outdir else ""
+    if not d or not os.path.isdir(d):
+        return found
+    for fn in os.listdir(d):
+        if not fn.endswith(".csv"):
+            continue
+        if assay_suffix and assay_suffix not in fn:
+            continue
+        if any(fn.startswith(p) for p in name_prefixes):
+            found.append(fn)
+    return sorted(found)
+
+
+def prefix_glds(glds_prefix, filenames):
+    return [fn if fn.startswith(glds_prefix) else f"{glds_prefix}{fn}" for fn in filenames]
+
+
+def add_normalized_counts_data_column(df, glds_prefix, assay_suffix, outdir=None):
     """Add the Normalized Counts Data column to the dataframe."""
     column_name = "Parameter Value[Normalized Counts Data]"
     alternative_names = []
-    
-    # Create the normalized counts filenames - same for all samples
-    # Include both regular and rRNArm files (4 total files)
-    normalized_files = [
-        f"{glds_prefix}Normalized_Counts{assay_suffix}.csv",
-        f"{glds_prefix}VST_Counts{assay_suffix}.csv",
-        f"{glds_prefix}Normalized_Counts_rRNArm{assay_suffix}.csv",
-        f"{glds_prefix}VST_Counts_rRNArm{assay_suffix}.csv"
-    ]
-    
-    # Join the files with commas
-    combined_files = ",".join(normalized_files)
-    
-    # Add the column to the dataframe with the same value for all rows
+
+    found = find_published_csvs(
+        outdir, "04-DESeq2_NormCounts", ["Normalized_Counts", "VST_Counts"], assay_suffix
+    )
+    if not found:
+        found = [
+            f"Normalized_Counts{assay_suffix}.csv",
+            f"VST_Counts{assay_suffix}.csv",
+            f"Normalized_Counts_rRNArm{assay_suffix}.csv",
+            f"VST_Counts_rRNArm{assay_suffix}.csv",
+        ]
+
+    combined_files = ",".join(prefix_glds(glds_prefix, found))
     df = update_column(df, column_name, combined_files, alternative_names)
-    
     return df
 
-def add_differential_expression_column(df, glds_prefix, assay_suffix):
+def add_differential_expression_column(df, glds_prefix, assay_suffix, outdir=None):
     """Add the Differential Expression Analysis Data column to the dataframe."""
     column_name = "Parameter Value[Differential Expression Analysis Data]"
     alternative_names = []
-    
-    # Create the differential expression filenames - same for all samples
-    # Include both regular files and the rRNArm differential expression file (4 total)
-    de_files = [
-        f"{glds_prefix}SampleTable{assay_suffix}.csv",
-        f"{glds_prefix}contrasts{assay_suffix}.csv",
-        f"{glds_prefix}differential_expression{assay_suffix}.csv",
-        f"{glds_prefix}differential_expression_rRNArm{assay_suffix}.csv"
-    ]
-    
-    # Join the files with commas
-    combined_files = ",".join(de_files)
-    
-    # Add the column to the dataframe with the same value for all rows
+
+    found = find_published_csvs(
+        outdir,
+        "05-DESeq2_DGE",
+        ["SampleTable", "contrasts", "differential_expression"],
+        assay_suffix,
+    )
+    if not found:
+        found = [
+            f"SampleTable{assay_suffix}.csv",
+            f"contrasts{assay_suffix}.csv",
+            f"differential_expression{assay_suffix}.csv",
+            f"differential_expression_rRNArm{assay_suffix}.csv",
+        ]
+
+    combined_files = ",".join(prefix_glds(glds_prefix, found))
     df = update_column(df, column_name, combined_files, alternative_names)
-    
     return df
 
 def add_aligned_sequence_data_column(df, glds_prefix, assay_suffix, runsheet_df=None, mode=""):
@@ -1722,7 +1740,7 @@ def main():
         print("\n=== PROCESSING NORMALIZED COUNTS DATA SECTION ===")
         
         # Add Normalized Counts Data column
-        assay_df = add_normalized_counts_data_column(assay_df, glds_prefix, args.assay_suffix)
+        assay_df = add_normalized_counts_data_column(assay_df, glds_prefix, args.assay_suffix, args.outdir)
         
         # =====================================================
         # SECTION 7: DIFFERENTIAL EXPRESSION
@@ -1730,7 +1748,7 @@ def main():
         print("\n=== PROCESSING DIFFERENTIAL EXPRESSION SECTION ===")
         
         # Add Differential Expression Analysis Data column
-        assay_df = add_differential_expression_column(assay_df, glds_prefix, args.assay_suffix)
+        assay_df = add_differential_expression_column(assay_df, glds_prefix, args.assay_suffix, args.outdir)
         
         # =====================================================
         # SECTION 8: ERCC ANALYSIS (CONDITIONAL)

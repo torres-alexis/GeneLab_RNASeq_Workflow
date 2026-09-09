@@ -155,6 +155,7 @@ process VV_DGE_DESEQ2 {
     path(runsheet)
     path(dge_table) // annotated dge table
     path(dge_table_rrnarm) // (rrna rm) annotated dge table
+    val(stratify_by)
 
   output:
     path("VV_log.csv"), optional: params.skip_vv, emit: log
@@ -163,9 +164,10 @@ process VV_DGE_DESEQ2 {
   script:
   def mode_params = params.mode == "microbes" ? "--mode microbes" : ""
   def assay_suffix_arg = params.assay_suffix ? "--assay_suffix ${params.assay_suffix}" : ""
+  def stratify_arg = stratify_by ? "--stratify_by '${stratify_by}'" : ""
   """
   if ${ !params.skip_vv } ; then
-    vv_dge_deseq2.py --runsheet ${runsheet} --outdir ${publishdir} ${assay_suffix_arg} ${mode_params}
+    vv_dge_deseq2.py --runsheet ${runsheet} --outdir ${publishdir} ${assay_suffix_arg} ${mode_params} ${stratify_arg}
   fi
 
   echo '"${task.process}":' > versions.yml

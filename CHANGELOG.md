@@ -38,9 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `-profile podman`.
 - Fetch remote annotation tables and references in worker processes.
 - Rename `stage_raw_reads.nf` to `stage_reads.nf` (raw and trimmed).
+- Split DGE by `Factor Value[organism part]` when that factor has multiple values. Outputs are labeled with the factor condition. Used to run DGE on plant datasets with samples from different organism parts.
 
 ### Fixed
 
+- Fixed wording in Dummy DGE debug log and param description.
 - NF 26 `publishDir` pattern closures are predicates, not glob strings.
 - ISA archive publishing when the workflow is run with both `--isa_archive_path` and `--runsheet_path`.
 

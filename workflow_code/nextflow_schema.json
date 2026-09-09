@@ -308,7 +308,7 @@
         },
         "use_dummy_gene_counts": {
           "type": "boolean",
-          "description": "Generate random gene counts during DGE. This is should be enabled when using '--truncate_to'."
+          "description": "Add random counts to the DGE matrix. Enable when using '--truncate_to'."
         },
         "dp_tools_plugin": {
           "type": "string",
