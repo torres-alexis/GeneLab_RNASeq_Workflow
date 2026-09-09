@@ -60,3 +60,16 @@ process FETCH_REMOTE_GENES_RESULTS {
         fetch_uri.sh '${uris[0]}' 1.genes.results
         """
 }
+
+process FETCH_REMOTE_TABLE {
+    input:
+        val(uri)
+
+    output:
+        path("1.csv"), emit: table
+
+    script:
+        """
+        fetch_uri.sh '${uri}' 1.csv
+        """
+}

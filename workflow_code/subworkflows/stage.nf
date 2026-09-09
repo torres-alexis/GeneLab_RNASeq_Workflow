@@ -4,16 +4,14 @@ include { ISA_TO_RUNSHEET } from '../modules/isa_to_runsheet.nf'
 include { GET_ACCESSIONS } from '../modules/get_accessions.nf'
 include { STAGE_READS } from './stage_raw_reads.nf'
 include { GET_OSDR_FILE_LIST } from '../modules/get_osdr_file_list.nf'
-include { DOWNLOAD_OSDR_READS } from '../modules/download_osdr_reads.nf'
-include { DOWNLOAD_OSDR_BAM } from '../modules/download_osdr_bam.nf'
-include { DOWNLOAD_OSDR_GENES_RESULTS } from '../modules/download_osdr_genes_results.nf'
-include { DOWNLOAD_OSDR_COUNTS_TABLE } from '../modules/download_osdr_counts_table.nf'
-include { DOWNLOAD_OSDR_DGE_TABLE } from '../modules/download_osdr_dge_table.nf'
+include { UPDATE_OSDR_RUNSHEET } from '../modules/update_osdr_runsheet.nf'
 include { COPY_BAMS } from '../modules/copy_bams.nf'
 include { COPY_GENES_RESULTS } from '../modules/copy_genes_results.nf'
 include { COPY_COUNTS_TABLE } from '../modules/copy_counts_table.nf'
 include { COPY_DGE_TABLE } from '../modules/copy_dge_table.nf'
 include { FETCH_REMOTE_BAM; FETCH_REMOTE_GENES_RESULTS } from '../modules/fetch_remote.nf'
+include { FETCH_REMOTE_TABLE as FETCH_REMOTE_COUNTS_TABLE } from '../modules/fetch_remote.nf'
+include { FETCH_REMOTE_TABLE as FETCH_REMOTE_DGE_TABLE } from '../modules/fetch_remote.nf'
 include { validateParameters } from 'plugin/nf-schema'
 
 def is_remote_uri(p) {
@@ -49,11 +47,7 @@ workflow STAGE {
 
     main:
         def ep = params.entry_point
-        def types = entry_parse_types()
-        def parse_type = types[ep]
-        if (!parse_type) {
-            error "Unknown entry_point '${ep}'. Expected one of: ${types.keySet()}"
-        }
+        def parse_type = entry_parse_types()[ep]
 
         channel.empty() | set { osd_accession }
         channel.empty() | set { glds_accession }
@@ -96,12 +90,23 @@ workflow STAGE {
         channel.empty() | set { dge_table }
 
         def no_runsheet = (params.runsheet_path == null)
-        def osdr_derived = no_runsheet && ep != 'raw_reads'
         def counts_override = (ep == 'counts_table' && params.counts_table_path)
         def dge_override = (ep == 'dge_table' && params.dge_table_path)
+        def update_osdr = no_runsheet && ep != 'raw_reads' && !counts_override && !dge_override
 
-        // ISA / --counts_table_path / --dge_table_path: metadata only. Don't require raw cols.
-        def type = (osdr_derived || counts_override || dge_override) ? 'meta' : parse_type
+        if ( update_osdr ) {
+            GET_OSDR_FILE_LIST( osd_accession )
+            UPDATE_OSDR_RUNSHEET(
+                ch_outdir,
+                runsheet_path,
+                GET_OSDR_FILE_LIST.out.file_list,
+                glds_accession,
+                ep
+            )
+            runsheet_path = UPDATE_OSDR_RUNSHEET.out.runsheet
+        }
+
+        def type = (counts_override || dge_override) ? 'meta' : parse_type
         PARSE_RUNSHEET( runsheet_path, channel.value(type) )
         runsheet_path = PARSE_RUNSHEET.out.runsheet
 
@@ -113,61 +118,6 @@ workflow STAGE {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
             COPY_DGE_TABLE(ch_outdir, file(params.dge_table_path))
             dge_table = COPY_DGE_TABLE.out.dge_table
-        } else if ( osdr_derived ) {
-            GET_OSDR_FILE_LIST( osd_accession )
-            if ( ep == 'trimmed_reads' ) {
-                samples = PARSE_RUNSHEET.out.samples
-                DOWNLOAD_OSDR_READS(
-                    ch_outdir,
-                    osd_accession,
-                    glds_accession,
-                    samples.map { meta, _files -> meta },
-                    "trimmed",
-                    GET_OSDR_FILE_LIST.out.file_list
-                )
-                trimmed_reads = DOWNLOAD_OSDR_READS.out.trimmed_reads
-                samples_txt = samples_txt_from(trimmed_reads)
-            } else if ( ep == 'bam_files' ) {
-                samples = PARSE_RUNSHEET.out.samples
-                DOWNLOAD_OSDR_BAM(
-                    ch_outdir,
-                    osd_accession,
-                    glds_accession,
-                    samples.map { meta, _files -> meta },
-                    GET_OSDR_FILE_LIST.out.file_list
-                )
-                bam_files = DOWNLOAD_OSDR_BAM.out.bam_files
-                samples_txt = samples_txt_from(bam_files)
-            } else if ( ep == 'genes_results' ) {
-                samples = PARSE_RUNSHEET.out.samples
-                DOWNLOAD_OSDR_GENES_RESULTS(
-                    ch_outdir,
-                    osd_accession,
-                    glds_accession,
-                    samples.map { meta, _files -> meta },
-                    GET_OSDR_FILE_LIST.out.file_list
-                )
-                genes_results = DOWNLOAD_OSDR_GENES_RESULTS.out.genes_results
-                samples_txt = samples_txt_from(genes_results)
-            } else if ( ep == 'counts_table' ) {
-                samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-                DOWNLOAD_OSDR_COUNTS_TABLE(
-                    ch_outdir,
-                    osd_accession,
-                    glds_accession,
-                    GET_OSDR_FILE_LIST.out.file_list
-                )
-                counts_table = DOWNLOAD_OSDR_COUNTS_TABLE.out.counts_table
-            } else if ( ep == 'dge_table' ) {
-                samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-                DOWNLOAD_OSDR_DGE_TABLE(
-                    ch_outdir,
-                    osd_accession,
-                    glds_accession,
-                    GET_OSDR_FILE_LIST.out.file_list
-                )
-                dge_table = DOWNLOAD_OSDR_DGE_TABLE.out.dge_table
-            }
         } else if ( ep == 'raw_reads' ) {
             samples = PARSE_RUNSHEET.out.samples
             STAGE_READS( ch_outdir, samples, channel.value("raw") )
@@ -200,11 +150,21 @@ workflow STAGE {
             samples_txt = samples_txt_from(genes_results)
         } else if ( ep == 'counts_table' ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-            COPY_COUNTS_TABLE(ch_outdir, PARSE_RUNSHEET.out.table)
+            ch_counts = PARSE_RUNSHEET.out.table.branch { p ->
+                remote: is_remote_uri(p)
+                local: true
+            }
+            FETCH_REMOTE_COUNTS_TABLE(ch_counts.remote)
+            COPY_COUNTS_TABLE(ch_outdir, FETCH_REMOTE_COUNTS_TABLE.out.table.mix(ch_counts.local.map { p -> file(p) }))
             counts_table = COPY_COUNTS_TABLE.out.counts_table
         } else if ( ep == 'dge_table' ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-            COPY_DGE_TABLE(ch_outdir, PARSE_RUNSHEET.out.table)
+            ch_dge = PARSE_RUNSHEET.out.table.branch { p ->
+                remote: is_remote_uri(p)
+                local: true
+            }
+            FETCH_REMOTE_DGE_TABLE(ch_dge.remote)
+            COPY_DGE_TABLE(ch_outdir, FETCH_REMOTE_DGE_TABLE.out.table.mix(ch_dge.local.map { p -> file(p) }))
             dge_table = COPY_DGE_TABLE.out.dge_table
         }
 

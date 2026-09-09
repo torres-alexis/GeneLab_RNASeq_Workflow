@@ -207,7 +207,6 @@ workflow PARSE_RUNSHEET {
             | map { row, parse_type -> table_path_from_row(row, parse_type) }
             | filter { path -> path != null && path != "" }
             | unique
-            | map { path -> file(path) }
 
     emit:
         samples = ch_samples
