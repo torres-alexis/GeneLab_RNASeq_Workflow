@@ -1,6 +1,6 @@
 process FEATURECOUNTS {
 
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern: "FeatureCounts*",
     mode: params.publish_dir_mode
 

@@ -1,9 +1,9 @@
 process GENERATE_PROTOCOL {
-    publishDir "${ch_outdir}/GeneLab",
+    publishDir path: { "${ch_outdir}/GeneLab" },
         mode: params.publish_dir_mode,
         pattern: "*.txt"
 
-    publishDir "${ch_outdir}/Metadata",
+    publishDir path: { "${ch_outdir}/Metadata" },
         mode: params.publish_dir_mode,
         pattern: "runsheet/*",
         saveAs: { filename ->

@@ -4,7 +4,7 @@
 */
 
 process PUBLISH_STAGED_ANALYSIS {
-    publishDir "${ch_outdir}",
+    publishDir path: { "${ch_outdir}" },
     pattern: '{00-RawData/**,Metadata/**}',
     mode: params.publish_dir_mode
 

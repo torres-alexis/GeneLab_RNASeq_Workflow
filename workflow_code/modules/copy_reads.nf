@@ -1,7 +1,7 @@
 process COPY_READS {
     tag "Sample: ${ meta.id }"
 
-    publishDir "${ publishdir }/${ type == "raw" ? "00-RawData/Fastq" : "01-TG_Preproc/Fastq" }",
+    publishDir path: { publishdir + "/" + (type == "raw" ? "00-RawData/Fastq" : "01-TG_Preproc/Fastq") },
         pattern:  "*.gz" ,
         mode: params.publish_dir_mode
 

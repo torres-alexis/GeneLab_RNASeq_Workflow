@@ -1,13 +1,13 @@
 
 process ANNOTATE_DGE_TABLE {
 
-    publishDir "${ publishdir }/05-DESeq2_DGE",
+    publishDir path: { "${ publishdir }/05-DESeq2_DGE" },
         pattern: "differential_expression${params.assay_suffix}.csv", 
         mode: params.publish_dir_mode
 
     input:
         val(publishdir)
-        val(gene_annotations_url)
+        path(gene_annotations), optional: true
         val(meta)
         path("?.csv")
 
@@ -21,7 +21,7 @@ process ANNOTATE_DGE_TABLE {
         """
         annotate_dge_table.R \
             '1.csv' \
-            '${gene_annotations_url}' \
+            '${gene_annotations}' \
             '${meta.gene_id_type}' \
             'differential_expression${output_filename_suffix}.csv'
 

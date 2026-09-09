@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Condensed the Nextflow mode and entry point subworkflows into `rnaseq.nf`.
+- Require Nextflow 26.04 or later.
+- Replace `-entry STAGE_ONLY` / `-entry POST_PROCESSING` with `--stage_only` / `--post_processing`.
+- `--strandedness` defaults to `auto` (RSeQC infer_experiment). `none`/`forward`/`reverse` overrides. Required, no `auto` for `--entry_point bam_files`.
+- Declare explicit closure parameters (strict-parser `it` warning).
 
 ## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.1.0) - 2025-12-09
 

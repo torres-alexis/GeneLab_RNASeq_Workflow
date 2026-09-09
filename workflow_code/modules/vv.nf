@@ -3,7 +3,7 @@ process VV_RAW_READS {
   label 'VV'
 
   // Publish VV log
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern:  "VV_log.csv" ,
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_${ task.process.tokenize(':').last() }${ params.assay_suffix }.csv" }
@@ -36,7 +36,7 @@ process VV_TRIMMED_READS {
   label 'VV'
 
   // Log publishing
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern:  "VV_log.csv" ,
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_${ task.process.tokenize(':').last() }${ params.assay_suffix }.csv" }
@@ -67,7 +67,7 @@ process VV_TRIMMED_READS {
 
 process VV_BOWTIE2_ALIGNMENT {
   // Log publishing
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern:  "VV_log.csv" ,
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_VV_ALIGNMENT${ params.assay_suffix }.csv" }
@@ -101,7 +101,7 @@ process VV_BOWTIE2_ALIGNMENT {
 
 process VV_RSEQC {
   // Log publishing
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern: "VV_log.csv",
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_${ task.process.tokenize(':').last() }${ params.assay_suffix }.csv" }
@@ -137,7 +137,7 @@ process VV_RSEQC {
 
 process VV_FEATURECOUNTS {
   // Log publishing
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern: "VV_log.csv",
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_VV_COUNTS${ params.assay_suffix }.csv" }
@@ -171,7 +171,7 @@ process VV_FEATURECOUNTS {
 
 process VV_DGE_DESEQ2 {
   // Log publishing
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern:  "VV_log.csv" ,
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_VV_DESEQ2_ANALYSIS${ params.assay_suffix }.csv" }
@@ -205,7 +205,7 @@ process VV_DGE_DESEQ2 {
 
 process VV_STAR_ALIGNMENT {
   // Log publishing
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern:  "VV_log.csv" ,
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_VV_ALIGNMENT${ params.assay_suffix }.csv" }
@@ -236,7 +236,7 @@ process VV_STAR_ALIGNMENT {
 
 process VV_RSEM_COUNTS {
   // Log publishing
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern:  "VV_log.csv" ,
     mode: params.publish_dir_mode,
     saveAs: { "VV_Logs/VV_log_VV_COUNTS${ params.assay_suffix }.csv" }
@@ -270,7 +270,7 @@ process VV_RSEM_COUNTS {
 }
 
 process VV_CONCAT_FILTER {
-  publishDir "${publishdir}/VV_Logs",
+  publishDir path: { "${publishdir}/VV_Logs" },
     mode: params.publish_dir_mode
 
   label 'VV'
