@@ -1,6 +1,8 @@
 include { STAGE } from '../subworkflows/stage.nf'
 
 include { PARSE_ANNOTATIONS_TABLE } from '../modules/parse_annotations_table.nf'
+include { FETCH_REMOTE_TABLE as FETCH_ANNOTATIONS_CSV } from '../modules/fetch_remote.nf'
+include { FETCH_REMOTE_TABLE as FETCH_GENE_ANNOTATIONS } from '../modules/fetch_remote.nf'
 include { DOWNLOAD_REFERENCES } from '../modules/download_references.nf'
 include { SUBSAMPLE_GENOME } from '../modules/subsample_genome.nf'
 include { DOWNLOAD_ERCC } from '../modules/download_ercc.nf'
@@ -136,11 +138,9 @@ def rewrite_figshare(url) {
     return url
 }
 
-def stage_gene_annotations(src) {
-    if ( !src ) {
-        return []
-    }
-    return file(rewrite_figshare(src.toString()), checkIfExists: true)
+def is_remote_uri(p) {
+    def s = p == null ? "" : p.toString().trim()
+    return s.contains("://")
 }
 
 workflow RNASEQ {
@@ -194,10 +194,24 @@ workflow RNASEQ {
         }
         ch_meta | map { meta -> meta.organism_sci } | set { organism_sci }
 
-        PARSE_ANNOTATIONS_TABLE( annotations_csv_url_string, organism_sci )
-        gene_annotations = params.gene_annotations_file
-            ? channel.value(stage_gene_annotations(params.gene_annotations_file))
-            : PARSE_ANNOTATIONS_TABLE.out.gene_annotations_url.map { url -> stage_gene_annotations(url) }
+        if ( is_remote_uri(params.reference_table) ) {
+            FETCH_ANNOTATIONS_CSV( annotations_csv_url_string )
+            PARSE_ANNOTATIONS_TABLE( FETCH_ANNOTATIONS_CSV.out.table, organism_sci )
+        } else {
+            PARSE_ANNOTATIONS_TABLE( annotations_csv_url_string.map { p -> file(p) }, organism_sci )
+        }
+        def ch_annot_src = params.gene_annotations_file
+            ? channel.value(params.gene_annotations_file.toString())
+            : PARSE_ANNOTATIONS_TABLE.out.gene_annotations_url.map { url -> url ? url.toString() : "" }
+        ch_annot_src.branch { p ->
+            skip: !p
+            remote: is_remote_uri(p)
+            local: true
+        }.set { ch_annot }
+        FETCH_GENE_ANNOTATIONS( ch_annot.remote.map { rewrite_figshare(it) } )
+        gene_annotations = FETCH_GENE_ANNOTATIONS.out.table
+            .mix( ch_annot.local.map { p -> file(p) } )
+            .mix( ch_annot.skip.map { [] } )
 
         if ( params.reference_fasta && params.reference_gtf ) {
             channel.value( params.reference_source ) | set { reference_source }
@@ -229,7 +243,13 @@ workflow RNASEQ {
 
             DOWNLOAD_ERCC( ch_meta.map { meta -> meta.has_ercc }, reference_store_path ).ifEmpty([file("ERCC92.fa"), file("ERCC92.gtf")]) | set { ch_maybe_ercc_refs }
             CONCAT_ERCC( reference_store_path, organism_sci, reference_source, reference_version, genome_references_pre_ercc, ch_maybe_ercc_refs, ch_meta.map { meta -> meta.has_ercc } )
-                .ifEmpty { genome_references_pre_ercc.value } | set { genome_references }
+            genome_references = CONCAT_ERCC.out.mix(
+                genome_references_pre_ercc
+                    .map { refs -> [kind: 'pre', refs: refs] }
+                    .combine( ch_meta.map { meta -> meta.has_ercc } )
+                    .filter { _row, has -> !has }
+                    .map { row, _has -> row.refs }
+            )
 
             if ( ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
                 GTF_TO_PRED(
