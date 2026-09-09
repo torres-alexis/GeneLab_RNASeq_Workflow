@@ -5,7 +5,7 @@
 process DOWNLOAD_OSDR_BAM {
     tag "Sample: ${ meta.id }"
     
-    publishDir "${ publishdir }/02-STAR_Alignment/${meta.id}",
+    publishDir path: { "${ publishdir }/02-STAR_Alignment/" + meta.id },
         mode: params.publish_dir_mode
 
     input:

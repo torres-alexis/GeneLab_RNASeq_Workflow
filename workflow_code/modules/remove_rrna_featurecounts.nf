@@ -13,7 +13,7 @@ process REMOVE_RRNA_FEATURECOUNTS {
      *   rRNA count summary file containing the number of rRNA genes removed for each sample.
      */
 
-    publishDir "${ publishdir }",
+    publishDir path: { "${ publishdir }" },
         pattern: "FeatureCounts_rRNArm${params.assay_suffix}.tsv",
         mode: params.publish_dir_mode
 

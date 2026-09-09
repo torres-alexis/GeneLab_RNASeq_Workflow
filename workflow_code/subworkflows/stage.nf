@@ -15,30 +15,23 @@ include { COPY_COUNTS_TABLE } from '../modules/copy_counts_table.nf'
 include { COPY_DGE_TABLE } from '../modules/copy_dge_table.nf'
 include { validateParameters } from 'plugin/nf-schema'
 
-def ENTRY_PARSE_TYPE = [
-    raw_reads:     'raw',
-    trimmed_reads: 'trimmed',
-    bam_files:     'bam',
-    genes_results: 'genes',
-    counts_table:  'counts',
-    dge_table:     'dge'
-]
-
-def samples_txt_from(ch_pairs) {
-    ch_pairs | map { it[0].id } | collectFile(name: "samples.txt", sort: true, newLine: true)
+def entry_parse_types() {
+    return [
+        raw_reads:     'raw',
+        trimmed_reads: 'trimmed',
+        bam_files:     'bam',
+        genes_results: 'genes',
+        counts_table:  'counts',
+        dge_table:     'dge'
+    ]
 }
 
-/**
- * One staging path for every entry point.
- *
- * Accession / ISA / outdir is shared. Then:
- *   - OSDR pull if accession-only (no user runsheet) and entry != raw_reads
- *     (raw uses ISA runsheet paths; later entries download the derived artifact)
- *   - else parse the entry's columns and COPY / STAGE_READS
- *   - counts/dge also honor params.counts_table_path / params.dge_table_path
- *
- * file() staging stays as-is. Worker scheme-detect (proteomics STAGE_INPUT) is a later branch.
- */
+def samples_txt_from(ch_pairs) {
+    return ch_pairs
+        .map { pair -> pair[0].id }
+        .collectFile(name: "samples.txt", sort: true, newLine: true)
+}
+
 workflow STAGE {
     take:
         ch_outdir
@@ -50,25 +43,26 @@ workflow STAGE {
 
     main:
         def ep = params.entry_point
-        def parse_type = ENTRY_PARSE_TYPE[ep]
+        def types = entry_parse_types()
+        def parse_type = types[ep]
         if (!parse_type) {
-            error "Unknown entry_point '${ep}'. Expected one of: ${ENTRY_PARSE_TYPE.keySet()}"
+            error "Unknown entry_point '${ep}'. Expected one of: ${types.keySet()}"
         }
 
-        Channel.empty() | set { osd_accession }
-        Channel.empty() | set { glds_accession }
+        channel.empty() | set { osd_accession }
+        channel.empty() | set { glds_accession }
 
         if ( accession ) {
             GET_ACCESSIONS( accession, api_url )
-            osd_accession = GET_ACCESSIONS.out.accessions_txt.map { it.readLines()[0].trim() }
-            glds_accession = GET_ACCESSIONS.out.accessions_txt.map { it.readLines()[1].trim() }
+            osd_accession = GET_ACCESSIONS.out.accessions_txt.map { txt -> txt.readLines()[0].trim() }
+            glds_accession = GET_ACCESSIONS.out.accessions_txt.map { txt -> txt.readLines()[1].trim() }
             ch_outdir = ch_outdir.combine(glds_accession).map { outdir, glds -> "$outdir/$glds" }
         } else {
-            ch_outdir = ch_outdir.map { it + "/results" }
+            ch_outdir = ch_outdir.map { dir -> dir + "/results" }
         }
         ch_outdir = ch_outdir.first()
 
-        Channel.empty() | set { isa_archive }
+        channel.empty() | set { isa_archive }
         if ( runsheet_path == null ) {
             if ( isa_archive_path == null ) {
                 FETCH_ISA( ch_outdir, osd_accession, glds_accession )
@@ -86,14 +80,14 @@ workflow STAGE {
             validateParameters()
         }
 
-        Channel.empty() | set { samples }
-        Channel.empty() | set { samples_txt }
-        Channel.empty() | set { raw_reads }
-        Channel.empty() | set { trimmed_reads }
-        Channel.empty() | set { bam_files }
-        Channel.empty() | set { genes_results }
-        Channel.empty() | set { counts_table }
-        Channel.empty() | set { dge_table }
+        channel.empty() | set { samples }
+        channel.empty() | set { samples_txt }
+        channel.empty() | set { raw_reads }
+        channel.empty() | set { trimmed_reads }
+        channel.empty() | set { bam_files }
+        channel.empty() | set { genes_results }
+        channel.empty() | set { counts_table }
+        channel.empty() | set { dge_table }
 
         def no_runsheet = (params.runsheet_path == null)
         def osdr_derived = no_runsheet && ep != 'raw_reads'
@@ -102,15 +96,15 @@ workflow STAGE {
 
         // ISA / --counts_table_path / --dge_table_path: metadata only. Don't require raw cols.
         def type = (osdr_derived || counts_override || dge_override) ? 'meta' : parse_type
-        PARSE_RUNSHEET( runsheet_path, Channel.value(type) )
+        PARSE_RUNSHEET( runsheet_path, channel.value(type) )
         runsheet_path = PARSE_RUNSHEET.out.runsheet
 
         if ( counts_override ) {
-            samples = PARSE_RUNSHEET.out.samples.map { meta, files -> meta }
+            samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
             COPY_COUNTS_TABLE(ch_outdir, file(params.counts_table_path))
             counts_table = COPY_COUNTS_TABLE.out.counts_table
         } else if ( dge_override ) {
-            samples = PARSE_RUNSHEET.out.samples.map { meta, files -> meta }
+            samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
             COPY_DGE_TABLE(ch_outdir, file(params.dge_table_path))
             dge_table = COPY_DGE_TABLE.out.dge_table
         } else if ( osdr_derived ) {
@@ -121,7 +115,7 @@ workflow STAGE {
                     ch_outdir,
                     osd_accession,
                     glds_accession,
-                    samples.map { meta, files -> meta },
+                    samples.map { meta, _files -> meta },
                     "trimmed",
                     GET_OSDR_FILE_LIST.out.file_list
                 )
@@ -133,7 +127,7 @@ workflow STAGE {
                     ch_outdir,
                     osd_accession,
                     glds_accession,
-                    samples.map { meta, files -> meta },
+                    samples.map { meta, _files -> meta },
                     GET_OSDR_FILE_LIST.out.file_list
                 )
                 bam_files = DOWNLOAD_OSDR_BAM.out.bam_files
@@ -144,13 +138,13 @@ workflow STAGE {
                     ch_outdir,
                     osd_accession,
                     glds_accession,
-                    samples.map { meta, files -> meta },
+                    samples.map { meta, _files -> meta },
                     GET_OSDR_FILE_LIST.out.file_list
                 )
                 genes_results = DOWNLOAD_OSDR_GENES_RESULTS.out.genes_results
                 samples_txt = samples_txt_from(genes_results)
             } else if ( ep == 'counts_table' ) {
-                samples = PARSE_RUNSHEET.out.samples.map { meta, files -> meta }
+                samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
                 DOWNLOAD_OSDR_COUNTS_TABLE(
                     ch_outdir,
                     osd_accession,
@@ -159,7 +153,7 @@ workflow STAGE {
                 )
                 counts_table = DOWNLOAD_OSDR_COUNTS_TABLE.out.counts_table
             } else if ( ep == 'dge_table' ) {
-                samples = PARSE_RUNSHEET.out.samples.map { meta, files -> meta }
+                samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
                 DOWNLOAD_OSDR_DGE_TABLE(
                     ch_outdir,
                     osd_accession,
@@ -170,12 +164,12 @@ workflow STAGE {
             }
         } else if ( ep == 'raw_reads' ) {
             samples = PARSE_RUNSHEET.out.samples
-            STAGE_READS( ch_outdir, samples, Channel.value("raw") )
+            STAGE_READS( ch_outdir, samples, channel.value("raw") )
             raw_reads = STAGE_READS.out.reads
             samples_txt = STAGE_READS.out.samples_txt
         } else if ( ep == 'trimmed_reads' ) {
             samples = PARSE_RUNSHEET.out.samples
-            STAGE_READS( ch_outdir, samples, Channel.value("trimmed") )
+            STAGE_READS( ch_outdir, samples, channel.value("trimmed") )
             trimmed_reads = STAGE_READS.out.reads
             samples_txt = STAGE_READS.out.samples_txt
         } else if ( ep == 'bam_files' ) {
@@ -189,11 +183,11 @@ workflow STAGE {
             genes_results = COPY_GENES_RESULTS.out.genes_results
             samples_txt = samples_txt_from(genes_results)
         } else if ( ep == 'counts_table' ) {
-            samples = PARSE_RUNSHEET.out.samples.map { meta, files -> meta }
+            samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
             COPY_COUNTS_TABLE(ch_outdir, PARSE_RUNSHEET.out.table)
             counts_table = COPY_COUNTS_TABLE.out.counts_table
         } else if ( ep == 'dge_table' ) {
-            samples = PARSE_RUNSHEET.out.samples.map { meta, files -> meta }
+            samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
             COPY_DGE_TABLE(ch_outdir, PARSE_RUNSHEET.out.table)
             dge_table = COPY_DGE_TABLE.out.dge_table
         }

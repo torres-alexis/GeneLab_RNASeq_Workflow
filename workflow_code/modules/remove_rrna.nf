@@ -12,8 +12,8 @@ process REMOVE_RRNA {
      *   rRNA count summary file.
      */
 
-    publishDir "${ publishdir }/${ meta.id }",
-        pattern: "${meta.id}${params.assay_suffix}_rRNArm.genes.results",
+    publishDir path: { publishdir + "/" + meta.id },
+        pattern: { "${meta.id}${params.assay_suffix}_rRNArm.genes.results" },
         mode: params.publish_dir_mode
 
     input:

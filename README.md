@@ -105,7 +105,7 @@ Nextflow can be installed either through [Anaconda](https://anaconda.org/biocond
 > [!NOTE] 
 > If you want to install Anaconda, we recommend installing a Miniforge version appropriate for your system, as documented on the [conda-forge website](https://conda-forge.org/download/), where you can find basic binaries for most systems. More detailed miniforge documentation is available in the [miniforge github repository](https://github.com/conda-forge/miniforge).
 > 
-> Once conda is installed on your system, you can install the latest version of Nextflow by running the following commands:
+> This workflow requires Nextflow 26.04 or later. Once conda is installed on your system, you can install it by running the following commands:
 > 
 > ```bash
 > conda install -c bioconda nextflow
@@ -352,11 +352,15 @@ nextflow run NF_RCP_2.1.1/main.nf \
   - `counts_table` - Start from a raw counts table (`.csv`)
   - `dge_table` - Start from a DGE output table. Adds gene annotation columns to the input table or replaces them if they already exist (`.csv`)
 
-* `--strandedness` - Specifies the strandedness of RNA-seq data (`none`, `forward`, or `reverse`; default: `none`) for entry points that skip alignment, such as the `bam_files` entry point.
+* `--strandedness` - `auto`, `none`, `forward`, or `reverse` (default: `auto`). `auto` = infer strandedness from RSeQC infer_experiment. `none`/`forward`/`reverse` overrides RSeQC output. Required, no `auto` for `--entry_point bam_files`.
 
 * `--counts_table_path` - Specifies a path to a raw counts table file (`.csv`). Used with `counts_table` entry point
 
 * `--dge_table_path` - Specifies a path to a DGE table file (`.csv`). Used with `dge_table` entry point
+
+* `--stage_only` - Publish the runsheet and raw reads, then exit (type: boolean, default: false)
+
+* `--post_processing` - Update the assay table and generate md5sums for `${outdir}/${accession}` (type: boolean, default: false)
  
 <br>
 

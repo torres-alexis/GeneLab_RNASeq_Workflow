@@ -1,7 +1,7 @@
 process QUANTIFY_STAR_GENES {
   // tag "Dataset-wide"
 
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern: "*.csv",
     mode: params.publish_dir_mode
 

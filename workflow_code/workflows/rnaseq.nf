@@ -61,9 +61,31 @@ include { VV_RAW_READS;
 include { SOFTWARE_VERSIONS } from '../modules/software_versions.nf'
 include { GENERATE_PROTOCOL } from '../modules/generate_protocol.nf'
 
+def strandedness_set() {
+    return params.strandedness in ['none', 'forward', 'reverse']
+}
+
 def convert_strandedness(p) {
-    def s = p ?: "none"
-    return s == "forward" ? "sense" : s == "reverse" ? "antisense" : s == "none" ? "unstranded" : s
+    switch ( p ) {
+        case 'forward': return 'sense'
+        case 'reverse': return 'antisense'
+        default:        return 'unstranded'
+    }
+}
+
+def rewrite_figshare(url) {
+    if ( url && url.toString().contains('figshare.com/ndownloader/files/') ) {
+        def file_id = (url.toString() =~ /.*\/files\/([a-zA-Z0-9]+).*/)[0][1]
+        return "https://api.figshare.com/v2/file/download/${file_id}"
+    }
+    return url
+}
+
+def stage_gene_annotations(src) {
+    if ( !src ) {
+        return []
+    }
+    return file(rewrite_figshare(src.toString()), checkIfExists: true)
 }
 
 workflow RNASEQ {
@@ -82,7 +104,7 @@ workflow RNASEQ {
         def ep = params.entry_point
         def microbes = params.mode == 'microbes'
         dge_script = "${projectDir}/bin/dge_deseq2.Rmd"
-        ch_multiqc_config = params.multiqc_config ? Channel.fromPath( params.multiqc_config ) : Channel.fromPath("NO_FILE")
+        ch_multiqc_config = params.multiqc_config ? channel.fromPath( params.multiqc_config ) : channel.fromPath("NO_FILE")
 
         println "Entry point: '${ep}' mode: '${params.mode}'"
         if ( microbes && ep == 'genes_results' ) {
@@ -90,6 +112,9 @@ workflow RNASEQ {
         }
         if ( !(ep in ['raw_reads', 'trimmed_reads', 'bam_files', 'genes_results', 'counts_table', 'dge_table']) ) {
             error "Unknown entry_point '${ep}'"
+        }
+        if ( ep == 'bam_files' && !strandedness_set() ) {
+            error "--strandedness is required for entry_point bam_files (none, forward, or reverse)"
         }
 
         STAGE(
@@ -110,18 +135,20 @@ workflow RNASEQ {
         if ( ep in ['counts_table', 'dge_table'] ) {
             samples | first | set { ch_meta }
         } else {
-            samples | first | map { meta, files -> meta } | set { ch_meta }
+            samples | first | map { meta, _files -> meta } | set { ch_meta }
         }
-        ch_meta | map { it.organism_sci } | set { organism_sci }
+        ch_meta | map { meta -> meta.organism_sci } | set { organism_sci }
 
         PARSE_ANNOTATIONS_TABLE( annotations_csv_url_string, organism_sci )
-        gene_annotations_url = PARSE_ANNOTATIONS_TABLE.out.gene_annotations_url
+        gene_annotations = params.gene_annotations_file
+            ? channel.value(stage_gene_annotations(params.gene_annotations_file))
+            : PARSE_ANNOTATIONS_TABLE.out.gene_annotations_url.map { url -> stage_gene_annotations(url) }
 
         if ( params.reference_fasta && params.reference_gtf ) {
-            Channel.value( params.reference_source ) | set { reference_source }
-            Channel.value( params.reference_version ) | set { reference_version }
-            Channel.value( params.reference_fasta ) | set { reference_fasta_url }
-            Channel.value( params.reference_gtf ) | set { reference_gtf_url }
+            channel.value( params.reference_source ) | set { reference_source }
+            channel.value( params.reference_version ) | set { reference_version }
+            channel.value( params.reference_fasta ) | set { reference_fasta_url }
+            channel.value( params.reference_gtf ) | set { reference_gtf_url }
         } else {
             reference_source = PARSE_ANNOTATIONS_TABLE.out.reference_source
             reference_version = PARSE_ANNOTATIONS_TABLE.out.reference_version
@@ -129,10 +156,10 @@ workflow RNASEQ {
             reference_gtf_url = PARSE_ANNOTATIONS_TABLE.out.reference_gtf_url
         }
 
-        Channel.empty() | set { genome_references }
-        Channel.empty() | set { genome_references_pre_ercc }
-        Channel.empty() | set { genome_bed }
-        Channel.empty() | set { ch_versions }
+        channel.empty() | set { genome_references }
+        channel.empty() | set { genome_references_pre_ercc }
+        channel.empty() | set { genome_bed }
+        channel.empty() | set { ch_versions }
 
         if ( ep != 'dge_table' ) {
             DOWNLOAD_REFERENCES( reference_store_path, organism_sci, reference_source, reference_version, reference_fasta_url, reference_gtf_url )
@@ -145,8 +172,8 @@ workflow RNASEQ {
                 genome_references_pre_subsample | flatten | toList | set { genome_references_pre_ercc }
             }
 
-            DOWNLOAD_ERCC( ch_meta.map { it.has_ercc }, reference_store_path ).ifEmpty([file("ERCC92.fa"), file("ERCC92.gtf")]) | set { ch_maybe_ercc_refs }
-            CONCAT_ERCC( reference_store_path, organism_sci, reference_source, reference_version, genome_references_pre_ercc, ch_maybe_ercc_refs, ch_meta.map { it.has_ercc } )
+            DOWNLOAD_ERCC( ch_meta.map { meta -> meta.has_ercc }, reference_store_path ).ifEmpty([file("ERCC92.fa"), file("ERCC92.gtf")]) | set { ch_maybe_ercc_refs }
+            CONCAT_ERCC( reference_store_path, organism_sci, reference_source, reference_version, genome_references_pre_ercc, ch_maybe_ercc_refs, ch_meta.map { meta -> meta.has_ercc } )
                 .ifEmpty { genome_references_pre_ercc.value } | set { genome_references }
 
             if ( ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
@@ -155,7 +182,7 @@ workflow RNASEQ {
                     organism_sci,
                     reference_source,
                     reference_version,
-                    genome_references | map { it[1] }
+                    genome_references | map { refs -> refs[1] }
                 )
                 PRED_TO_BED(
                     derived_store_path,
@@ -169,63 +196,61 @@ workflow RNASEQ {
             }
         }
 
-        Channel.empty() | set { raw_mqc_data }
-        Channel.empty() | set { raw_mqc_zip }
-        Channel.empty() | set { trimmed_mqc_data }
-        Channel.empty() | set { trimmed_mqc_zip }
-        Channel.empty() | set { sorted_bam }
-        Channel.empty() | set { bam_to_transcriptome }
-        Channel.empty() | set { reads_per_gene }
-        Channel.empty() | set { bam_only_files }
-        Channel.empty() | set { align_mqc_data }
-        Channel.empty() | set { align_mqc_zip }
-        Channel.empty() | set { genes_results }
-        Channel.empty() | set { rsem_publishables }
-        Channel.empty() | set { star_publishables }
-        Channel.empty() | set { count_mqc_data }
-        Channel.empty() | set { count_mqc_zip }
-        Channel.empty() | set { counts }
-        Channel.empty() | set { infer_mqc_data }
-        Channel.empty() | set { infer_mqc_zip }
-        Channel.empty() | set { genebody_mqc_data }
-        Channel.empty() | set { genebody_mqc_zip }
-        Channel.empty() | set { inner_mqc_data }
-        Channel.empty() | set { inner_mqc_zip }
-        Channel.empty() | set { readdist_mqc_data }
-        Channel.empty() | set { readdist_mqc_zip }
-        Channel.empty() | set { dge_table }
-        Channel.empty() | set { dge_table_rrnarm }
-        Channel.empty() | set { counts_rrnarm }
-        Channel.empty() | set { norm_counts }
-        Channel.empty() | set { qc_counts }
+        channel.empty() | set { raw_mqc_data }
+        channel.empty() | set { raw_mqc_zip }
+        channel.empty() | set { trimmed_mqc_data }
+        channel.empty() | set { trimmed_mqc_zip }
+        channel.empty() | set { sorted_bam }
+        channel.empty() | set { bam_to_transcriptome }
+        channel.empty() | set { reads_per_gene }
+        channel.empty() | set { bam_only_files }
+        channel.empty() | set { align_mqc_data }
+        channel.empty() | set { align_mqc_zip }
+        channel.empty() | set { genes_results }
+        channel.empty() | set { rsem_publishables }
+        channel.empty() | set { star_publishables }
+        channel.empty() | set { count_mqc_data }
+        channel.empty() | set { count_mqc_zip }
+        channel.empty() | set { counts }
+        channel.empty() | set { infer_mqc_data }
+        channel.empty() | set { infer_mqc_zip }
+        channel.empty() | set { genebody_mqc_data }
+        channel.empty() | set { genebody_mqc_zip }
+        channel.empty() | set { inner_mqc_data }
+        channel.empty() | set { inner_mqc_zip }
+        channel.empty() | set { readdist_mqc_data }
+        channel.empty() | set { readdist_mqc_zip }
+        channel.empty() | set { dge_table }
+        channel.empty() | set { dge_table_rrnarm }
+        channel.empty() | set { counts_rrnarm }
+        channel.empty() | set { norm_counts }
+        channel.empty() | set { qc_counts }
 
         nf_version = '"NEXTFLOW":\n    nextflow: '.concat("${nextflow.version}\n")
-        ch_versions = Channel.value(nf_version).mix(ch_versions)
-
-        strandedness = Channel.value(convert_strandedness(params.strandedness))
+        ch_versions = channel.value(nf_version).mix(ch_versions)
 
         if ( ep in ['raw_reads', 'trimmed_reads'] ) {
             if ( ep == 'raw_reads' ) {
-                RAW_FASTQC( ch_outdir.map { it + "/00-RawData/FastQC_Reports" }, STAGE.out.raw_reads )
-                RAW_FASTQC.out.fastqc | map { it -> [ it[1], it[2] ] }
+                RAW_FASTQC( ch_outdir.map { dir -> dir + "/00-RawData/FastQC_Reports" }, STAGE.out.raw_reads )
+                RAW_FASTQC.out.fastqc | map { qc -> [ qc[1], qc[2] ] }
                     | flatten
                     | collect
                     | set { raw_fastqc_zip }
 
                 GET_MAX_READ_LENGTH( raw_fastqc_zip )
-                max_read_length = GET_MAX_READ_LENGTH.out.length | map { it.toString().toInteger() }
+                max_read_length = GET_MAX_READ_LENGTH.out.length | map { n -> n.toString().toInteger() }
 
-                TRIMGALORE( ch_outdir.map { it + "/01-TG_Preproc" }, STAGE.out.raw_reads )
+                TRIMGALORE( ch_outdir.map { dir -> dir + "/01-TG_Preproc" }, STAGE.out.raw_reads )
                 trimmed_reads = TRIMGALORE.out.reads
 
-                TRIMMED_FASTQC( ch_outdir.map { it + "/01-TG_Preproc/FastQC_Reports" }, trimmed_reads )
-                TRIMMED_FASTQC.out.fastqc | map { it -> [ it[1], it[2] ] }
+                TRIMMED_FASTQC( ch_outdir.map { dir -> dir + "/01-TG_Preproc/FastQC_Reports" }, trimmed_reads )
+                TRIMMED_FASTQC.out.fastqc | map { qc -> [ qc[1], qc[2] ] }
                     | flatten
                     | collect
                     | set { trimmed_fastqc_zip }
 
-                RAW_READS_MULTIQC( ch_outdir.map { it + "/00-RawData/MultiQC_Reports" }, samples_txt, raw_fastqc_zip, ch_multiqc_config, "raw_")
-                TRIMMED_READS_MULTIQC( ch_outdir.map { it + "/01-TG_Preproc/MultiQC_Reports" }, samples_txt, trimmed_fastqc_zip | concat( TRIMGALORE.out.reports ) | collect, ch_multiqc_config, "trimmed_")
+                RAW_READS_MULTIQC( ch_outdir.map { dir -> dir + "/00-RawData/MultiQC_Reports" }, samples_txt, raw_fastqc_zip, ch_multiqc_config, "raw_")
+                TRIMMED_READS_MULTIQC( ch_outdir.map { dir -> dir + "/01-TG_Preproc/MultiQC_Reports" }, samples_txt, trimmed_fastqc_zip | concat( TRIMGALORE.out.reports ) | collect, ch_multiqc_config, "trimmed_")
 
                 raw_mqc_data = RAW_READS_MULTIQC.out.data
                 raw_mqc_zip = RAW_READS_MULTIQC.out.zipped_data
@@ -233,16 +258,16 @@ workflow RNASEQ {
             } else {
                 trimmed_reads = STAGE.out.trimmed_reads
 
-                TRIMMED_FASTQC( ch_outdir.map { it + "/01-TG_Preproc/FastQC_Reports" }, trimmed_reads )
-                TRIMMED_FASTQC.out.fastqc | map { it -> [ it[1], it[2] ] }
+                TRIMMED_FASTQC( ch_outdir.map { dir -> dir + "/01-TG_Preproc/FastQC_Reports" }, trimmed_reads )
+                TRIMMED_FASTQC.out.fastqc | map { qc -> [ qc[1], qc[2] ] }
                     | flatten
                     | collect
                     | set { trimmed_fastqc_zip }
 
                 GET_MAX_READ_LENGTH( trimmed_fastqc_zip )
-                max_read_length = GET_MAX_READ_LENGTH.out.length | map { it.toString().toInteger() }
+                max_read_length = GET_MAX_READ_LENGTH.out.length | map { n -> n.toString().toInteger() }
 
-                TRIMMED_READS_MULTIQC( ch_outdir.map { it + "/01-TG_Preproc/MultiQC_Reports" }, samples_txt, trimmed_fastqc_zip, ch_multiqc_config, "trimmed_")
+                TRIMMED_READS_MULTIQC( ch_outdir.map { dir -> dir + "/01-TG_Preproc/MultiQC_Reports" }, samples_txt, trimmed_fastqc_zip, ch_multiqc_config, "trimmed_")
                 ch_versions = ch_versions.mix(TRIMMED_READS_MULTIQC.out.versions)
             }
             trimmed_mqc_data = TRIMMED_READS_MULTIQC.out.data
@@ -250,20 +275,20 @@ workflow RNASEQ {
 
             if ( microbes ) {
                 BUILD_BOWTIE2_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta )
-                ALIGN_BOWTIE2( ch_outdir.map { it + "/02-Bowtie2_Alignment" }, trimmed_reads, BUILD_BOWTIE2_INDEX.out.index_dir )
-                SORT_AND_INDEX_BAM( ch_outdir.map { it + "/02-Bowtie2_Alignment" }, ALIGN_BOWTIE2.out.bam )
-                ALIGN_MULTIQC( ch_outdir.map { it + "/02-Bowtie2_Alignment/MultiQC_Reports" }, samples_txt, ALIGN_BOWTIE2.out.alignment_logs | collect, ch_multiqc_config, "align_")
+                ALIGN_BOWTIE2( ch_outdir.map { dir -> dir + "/02-Bowtie2_Alignment" }, trimmed_reads, BUILD_BOWTIE2_INDEX.out.index_dir )
+                SORT_AND_INDEX_BAM( ch_outdir.map { dir -> dir + "/02-Bowtie2_Alignment" }, ALIGN_BOWTIE2.out.bam )
+                ALIGN_MULTIQC( ch_outdir.map { dir -> dir + "/02-Bowtie2_Alignment/MultiQC_Reports" }, samples_txt, ALIGN_BOWTIE2.out.alignment_logs | collect, ch_multiqc_config, "align_")
 
                 sorted_bam = SORT_AND_INDEX_BAM.out.sorted_bam
-                bam_only_files = SORT_AND_INDEX_BAM.out.sorted_bam.map { it[1] } | toSortedList()
+                bam_only_files = SORT_AND_INDEX_BAM.out.sorted_bam.map { row -> row[1] } | toSortedList()
                 align_mqc_data = ALIGN_MULTIQC.out.data
                 align_mqc_zip = ALIGN_MULTIQC.out.zipped_data
                 ch_versions = ch_versions.mix(ALIGN_BOWTIE2.out.versions)
             } else {
                 BUILD_STAR_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta, max_read_length )
-                ALIGN_STAR( ch_outdir.map { it + "/02-STAR_Alignment" }, trimmed_reads, BUILD_STAR_INDEX.out.index_dir )
-                SORT_AND_INDEX_BAM( ch_outdir.map { it + "/02-STAR_Alignment" }, ALIGN_STAR.out.bam_by_coord )
-                ALIGN_MULTIQC( ch_outdir.map { it + "/02-STAR_Alignment/MultiQC_Reports" }, samples_txt, ALIGN_STAR.out.alignment_logs | collect, ch_multiqc_config, "align_")
+                ALIGN_STAR( ch_outdir.map { dir -> dir + "/02-STAR_Alignment" }, trimmed_reads, BUILD_STAR_INDEX.out.index_dir )
+                SORT_AND_INDEX_BAM( ch_outdir.map { dir -> dir + "/02-STAR_Alignment" }, ALIGN_STAR.out.bam_by_coord )
+                ALIGN_MULTIQC( ch_outdir.map { dir -> dir + "/02-STAR_Alignment/MultiQC_Reports" }, samples_txt, ALIGN_STAR.out.alignment_logs | collect, ch_multiqc_config, "align_")
 
                 sorted_bam = SORT_AND_INDEX_BAM.out.sorted_bam
                 bam_to_transcriptome = ALIGN_STAR.out.bam_to_transcriptome
@@ -274,19 +299,23 @@ workflow RNASEQ {
                 ch_versions = ch_versions.mix(ALIGN_STAR.out.versions).mix(SORT_AND_INDEX_BAM.out.versions)
             }
 
-            GENEBODY_COVERAGE( ch_outdir.map { it + "/RSeQC_Analyses/02_geneBody_coverage" }, sorted_bam, genome_bed )
-            INFER_EXPERIMENT( ch_outdir.map { it + "/RSeQC_Analyses/03_infer_experiment" }, sorted_bam, genome_bed )
-            INNER_DISTANCE( ch_outdir.map { it + "/RSeQC_Analyses/04_inner_distance" }, sorted_bam, genome_bed, max_read_length )
-            READ_DISTRIBUTION( ch_outdir.map { it + "/RSeQC_Analyses/05_read_distribution" }, sorted_bam, genome_bed )
+            GENEBODY_COVERAGE( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/02_geneBody_coverage" }, sorted_bam, genome_bed )
+            INFER_EXPERIMENT( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/03_infer_experiment" }, sorted_bam, genome_bed )
+            INNER_DISTANCE( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/04_inner_distance" }, sorted_bam, genome_bed, max_read_length )
+            READ_DISTRIBUTION( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/05_read_distribution" }, sorted_bam, genome_bed )
 
-            infer_expt_out = INFER_EXPERIMENT.out.log | map { it[1] } | collect
+            infer_expt_out = INFER_EXPERIMENT.out.log | map { row -> row[1] } | collect
             ASSESS_STRANDEDNESS( infer_expt_out )
-            strandedness = ASSESS_STRANDEDNESS.out | map { it.text.split(":")[0] }
+            if ( strandedness_set() ) {
+                strandedness = channel.value(convert_strandedness(params.strandedness))
+            } else {
+                strandedness = ASSESS_STRANDEDNESS.out | map { f -> f.text.split(":")[0] }
+            }
 
-            INFER_EXPERIMENT_MULTIQC( ch_outdir.map { it + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, INFER_EXPERIMENT.out.log | map { it[1] } | collect, ch_multiqc_config, "infer_exp_")
-            GENEBODY_COVERAGE_MULTIQC( ch_outdir.map { it + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, GENEBODY_COVERAGE.out.log | map { it[1] } | collect, ch_multiqc_config, "geneBody_cov_")
-            INNER_DISTANCE_MULTIQC( ch_outdir.map { it + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, INNER_DISTANCE.out.log | map { it[1] } | collect, ch_multiqc_config, "inner_dist_")
-            READ_DISTRIBUTION_MULTIQC( ch_outdir.map { it + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, READ_DISTRIBUTION.out.log | map { it[1] } | collect, ch_multiqc_config, "read_dist_")
+            INFER_EXPERIMENT_MULTIQC( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, INFER_EXPERIMENT.out.log | map { row -> row[1] } | collect, ch_multiqc_config, "infer_exp_")
+            GENEBODY_COVERAGE_MULTIQC( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, GENEBODY_COVERAGE.out.log | map { row -> row[1] } | collect, ch_multiqc_config, "geneBody_cov_")
+            INNER_DISTANCE_MULTIQC( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, INNER_DISTANCE.out.log | map { row -> row[1] } | collect, ch_multiqc_config, "inner_dist_")
+            READ_DISTRIBUTION_MULTIQC( ch_outdir.map { dir -> dir + "/RSeQC_Analyses/MultiQC_Reports" }, samples_txt, READ_DISTRIBUTION.out.log | map { row -> row[1] } | collect, ch_multiqc_config, "read_dist_")
 
             infer_mqc_data = INFER_EXPERIMENT_MULTIQC.out.data
             infer_mqc_zip = INFER_EXPERIMENT_MULTIQC.out.zipped_data
@@ -300,27 +329,29 @@ workflow RNASEQ {
                 .mix(GENEBODY_COVERAGE.out.versions)
                 .mix(INNER_DISTANCE.out.versions)
                 .mix(READ_DISTRIBUTION.out.versions)
+        } else {
+            strandedness = channel.value(convert_strandedness(params.strandedness))
         }
 
         if ( !microbes && ep in ['raw_reads', 'trimmed_reads', 'bam_files', 'genes_results'] ) {
             if ( ep == 'genes_results' ) {
                 genes_results = STAGE.out.genes_results
-                rsem_counts = genes_results | map { it[1] } | collect
-                QUANTIFY_RSEM_GENES( ch_outdir.map { it + "/03-RSEM_Counts" }, samples_txt, rsem_counts )
+                rsem_counts = genes_results | map { row -> row[1] } | collect
+                QUANTIFY_RSEM_GENES( ch_outdir.map { dir -> dir + "/03-RSEM_Counts" }, samples_txt, rsem_counts )
             } else {
                 if ( ep in ['raw_reads', 'trimmed_reads'] ) {
-                    QUANTIFY_STAR_GENES( ch_outdir.map { it + "/02-STAR_Alignment" }, samples_txt, reads_per_gene | toSortedList, strandedness )
+                    QUANTIFY_STAR_GENES( ch_outdir.map { dir -> dir + "/02-STAR_Alignment" }, samples_txt, reads_per_gene | toSortedList, strandedness )
                     star_publishables = QUANTIFY_STAR_GENES.out.publishables
                 }
 
                 def tx_bam = ep == 'bam_files' ? STAGE.out.bam_files : bam_to_transcriptome
                 BUILD_RSEM_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta )
-                COUNT_ALIGNED( ch_outdir.map { it + "/03-RSEM_Counts" }, tx_bam, BUILD_RSEM_INDEX.out.index_dir, strandedness )
+                COUNT_ALIGNED( ch_outdir.map { dir -> dir + "/03-RSEM_Counts" }, tx_bam, BUILD_RSEM_INDEX.out.index_dir, strandedness )
                 genes_results = COUNT_ALIGNED.out.genes_results
-                rsem_counts = COUNT_ALIGNED.out.counts | map { it[1] } | collect
-                QUANTIFY_RSEM_GENES( ch_outdir.map { it + "/03-RSEM_Counts" }, samples_txt, rsem_counts )
+                rsem_counts = COUNT_ALIGNED.out.counts | map { row -> row[1] } | collect
+                QUANTIFY_RSEM_GENES( ch_outdir.map { dir -> dir + "/03-RSEM_Counts" }, samples_txt, rsem_counts )
 
-                COUNT_MULTIQC( ch_outdir.map { it + "/03-RSEM_Counts/MultiQC_Reports" }, samples_txt, rsem_counts, ch_multiqc_config, "RSEM_count_")
+                COUNT_MULTIQC( ch_outdir.map { dir -> dir + "/03-RSEM_Counts/MultiQC_Reports" }, samples_txt, rsem_counts, ch_multiqc_config, "RSEM_count_")
                 count_mqc_data = COUNT_MULTIQC.out.data
                 count_mqc_zip = COUNT_MULTIQC.out.zipped_data
                 ch_versions = ch_versions.mix(COUNT_ALIGNED.out.versions).mix(COUNT_MULTIQC.out.versions)
@@ -330,12 +361,12 @@ workflow RNASEQ {
         }
 
         if ( microbes && ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
-            def bam_list = ep == 'bam_files' ? STAGE.out.bam_files.map { it[1] }.collect() : bam_only_files
+            def bam_list = ep == 'bam_files' ? STAGE.out.bam_files.map { row -> row[1] }.collect() : bam_only_files
             GET_GTF_FEATURES( genome_references )
-            gtf_features = GET_GTF_FEATURES.out.gtf_features.map { it.text.trim() }
-            FEATURECOUNTS( ch_outdir.map { it + "/03-FeatureCounts" }, ch_meta, genome_references, gtf_features, strandedness, bam_list )
-            QUANTIFY_FEATURECOUNTS_GENES( ch_outdir.map { it + "/03-FeatureCounts" }, samples_txt, FEATURECOUNTS.out.counts )
-            COUNT_MULTIQC( ch_outdir.map { it + "/03-FeatureCounts/MultiQC_Reports" }, samples_txt, FEATURECOUNTS.out.summary | collect, ch_multiqc_config, "FeatureCounts_")
+            gtf_features = GET_GTF_FEATURES.out.gtf_features.map { f -> f.text.trim() }
+            FEATURECOUNTS( ch_outdir.map { dir -> dir + "/03-FeatureCounts" }, ch_meta, genome_references, gtf_features, strandedness, bam_list )
+            QUANTIFY_FEATURECOUNTS_GENES( ch_outdir.map { dir -> dir + "/03-FeatureCounts" }, samples_txt, FEATURECOUNTS.out.counts )
+            COUNT_MULTIQC( ch_outdir.map { dir -> dir + "/03-FeatureCounts/MultiQC_Reports" }, samples_txt, FEATURECOUNTS.out.summary | collect, ch_multiqc_config, "FeatureCounts_")
 
             counts = FEATURECOUNTS.out.counts
             count_mqc_data = COUNT_MULTIQC.out.data
@@ -344,27 +375,27 @@ workflow RNASEQ {
         }
 
         if ( ep == 'dge_table' ) {
-            ANNOTATE_DGE_TABLE( ch_outdir, gene_annotations_url, ch_meta, STAGE.out.dge_table )
+            ANNOTATE_DGE_TABLE( ch_outdir, gene_annotations, ch_meta, STAGE.out.dge_table )
             ch_versions = ch_versions.mix(ANNOTATE_DGE_TABLE.out.versions)
         } else {
-            EXTRACT_RRNA( organism_sci, genome_references | map { it[1] } )
+            EXTRACT_RRNA( organism_sci, genome_references | map { refs -> refs[1] } )
 
             if ( ep == 'counts_table' ) {
                 def counts_dir = microbes ? "/03-FeatureCounts" : "/03-RSEM_Counts"
-                DGE_DESEQ2( ch_outdir, ch_meta, gene_annotations_url, runsheet_path, STAGE.out.counts_table, dge_script, "" )
-                REMOVE_RRNA_COUNTS_TABLE( ch_outdir.map { it + counts_dir }, STAGE.out.counts_table, EXTRACT_RRNA.out.rrna_ids )
+                DGE_DESEQ2( ch_outdir, ch_meta, gene_annotations, runsheet_path, STAGE.out.counts_table, dge_script, "" )
+                REMOVE_RRNA_COUNTS_TABLE( ch_outdir.map { dir -> dir + counts_dir }, STAGE.out.counts_table, EXTRACT_RRNA.out.rrna_ids )
                 counts_rrnarm = REMOVE_RRNA_COUNTS_TABLE.out.counts_rrnarm
-                DGE_DESEQ2_RRNA_RM( ch_outdir, ch_meta, gene_annotations_url, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
+                DGE_DESEQ2_RRNA_RM( ch_outdir, ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
             } else if ( microbes ) {
-                DGE_DESEQ2( ch_outdir, ch_meta, gene_annotations_url, runsheet_path, counts, dge_script, "" )
-                REMOVE_RRNA_FEATURECOUNTS( ch_outdir.map { it + "/03-FeatureCounts" }, counts, EXTRACT_RRNA.out.rrna_ids )
+                DGE_DESEQ2( ch_outdir, ch_meta, gene_annotations, runsheet_path, counts, dge_script, "" )
+                REMOVE_RRNA_FEATURECOUNTS( ch_outdir.map { dir -> dir + "/03-FeatureCounts" }, counts, EXTRACT_RRNA.out.rrna_ids )
                 counts_rrnarm = REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm
-                DGE_DESEQ2_RRNA_RM( ch_outdir, ch_meta, gene_annotations_url, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
+                DGE_DESEQ2_RRNA_RM( ch_outdir, ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
             } else {
-                DGE_DESEQ2( ch_outdir, ch_meta, gene_annotations_url, runsheet_path, genes_results.map{ it[1] } | collect, dge_script, "" )
-                REMOVE_RRNA( ch_outdir.map { it + "/03-RSEM_Counts" }, EXTRACT_RRNA.out.rrna_ids, genes_results )
+                DGE_DESEQ2( ch_outdir, ch_meta, gene_annotations, runsheet_path, genes_results.map { row -> row[1] } | collect, dge_script, "" )
+                REMOVE_RRNA( ch_outdir.map { dir -> dir + "/03-RSEM_Counts" }, EXTRACT_RRNA.out.rrna_ids, genes_results )
                 counts_rrnarm = REMOVE_RRNA.out.genes_results_rrnarm | toSortedList
-                DGE_DESEQ2_RRNA_RM( ch_outdir, ch_meta, gene_annotations_url, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
+                DGE_DESEQ2_RRNA_RM( ch_outdir, ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
             }
 
             dge_table = DGE_DESEQ2.out.dge_table
@@ -372,7 +403,7 @@ workflow RNASEQ {
             norm_counts = DGE_DESEQ2.out.norm_counts
             ch_versions = ch_versions.mix(DGE_DESEQ2.out.versions)
             if ( microbes ) {
-                qc_counts = DGE_DESEQ2.out.norm_counts | map { it[1] }
+                qc_counts = DGE_DESEQ2.out.norm_counts | map { row -> row[1] }
             }
         }
 
@@ -398,7 +429,7 @@ workflow RNASEQ {
             )
         }
 
-        Channel.empty() | set { vv_logs }
+        channel.empty() | set { vv_logs }
 
         if ( ep == 'raw_reads' ) {
             VV_RAW_READS( dp_tools_plugin, ch_outdir, ch_meta, runsheet_path, raw_mqc_zip )
@@ -417,7 +448,7 @@ workflow RNASEQ {
                 runsheet_path,
                 genebody_mqc_zip,
                 infer_mqc_zip,
-                Channel.empty() | mix(inner_mqc_zip) | collect | ifEmpty({ file("PLACEHOLDER") }),
+                channel.empty() | mix(inner_mqc_zip) | collect | ifEmpty({ file("PLACEHOLDER") }),
                 readdist_mqc_zip
             )
             vv_logs = vv_logs.mix(VV_RSEQC.out.log)

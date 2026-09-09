@@ -2,8 +2,8 @@ process COUNT_ALIGNED {
   // Generates gene and isoform counts from alignments
   tag "Sample: ${ meta.id }, Strandedness: ${ strandedness } "
 
-  publishDir "${ publishdir }/${ meta.id }",
-    pattern: "${ meta.id }*",
+  publishDir path: { publishdir + "/" + meta.id },
+    pattern: { "${ meta.id }*" },
     mode: params.publish_dir_mode
 
   input:

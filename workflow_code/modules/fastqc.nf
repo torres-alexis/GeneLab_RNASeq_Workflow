@@ -3,7 +3,7 @@ process FASTQC {
   // FastQC performed on reads
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
       pattern:  "*.{html,zip}" ,
       mode: params.publish_dir_mode
 

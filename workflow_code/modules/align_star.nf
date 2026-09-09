@@ -2,8 +2,8 @@ process ALIGN_STAR {
   // Aligns reads against STAR index
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }",
-    pattern: "${ meta.id }/**",
+  publishDir path: { "${ publishdir }" },
+    pattern: { "${ meta.id }/**" },
     mode: params.publish_dir_mode
 
   input:

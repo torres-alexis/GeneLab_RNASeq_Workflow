@@ -1,10 +1,10 @@
 process TRIMGALORE {
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }/Fastq",
+  publishDir path: { "${ publishdir }/Fastq" },
       pattern:  "*trimmed.fastq.gz" ,
       mode: params.publish_dir_mode
-  publishDir "${ publishdir }/Trimming_Reports",
+  publishDir path: { "${ publishdir }/Trimming_Reports" },
       pattern:  "*trimming_report.txt" ,
       mode: params.publish_dir_mode
 
