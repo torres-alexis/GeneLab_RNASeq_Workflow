@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `dp_tools` quay image tag from `1.3.8` to `1.3.8-slim`. Added `wget`, `awscli`, `unzip`, `procps`.
 - Fail early if the organism is not in the annotations table and `--reference_fasta` / `--reference_gtf` were not passed.
 
+### Fixed
+
+- ISA archive publishing when the workflow is run with both `--isa_archive_path` and `--runsheet_path`.
+
 ## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.1.0) - 2025-12-09
 
 ### Added
