@@ -340,6 +340,10 @@ def dge_file_suffix(assay_suffix, stratum=""):
     return assay_suffix
 
 
+def log2fc_flag_csv_name(assay_suffix):
+    return f"log2fc_flag_characterization{assay_suffix}.csv"
+
+
 def factor_value_columns(df):
     return [c for c in df.columns if str(c).startswith("Factor Value[") and str(c).endswith("]")]
 
@@ -2402,13 +2406,7 @@ def check_dge_table_log2fc_within_reason(outdir, runsheet_path, log_path, assay_
                 stdev_col = stdev_map[group]
                 ratio_col = f"Stdev_to_Mean_ratio_{group}"
                 flagged_df[ratio_col] = flagged_df[stdev_col] / flagged_df[mean_col]
-            output_dir = os.path.dirname(log_path)
-            output_path = os.path.join(output_dir, "log2fc_flag_characterization.csv")
-            print(f"[vv_dge_deseq2.py] Writing flagged log2fc DataFrame to: {output_path} (shape: {flagged_df.shape})")
-            try:
-                flagged_df.to_csv(output_path, index=False)
-            except Exception as e:
-                print(f"[vv_dge_deseq2.py] ERROR writing log2fc_flag_characterization.csv: {e}")
+            flagged_df.to_csv(os.path.join(os.path.dirname(log_path), log2fc_flag_csv_name(assay_suffix)), index=False)
             stdev_mean_ratio_gt1_count = len(set(stdev_flagged))
             details = f"Found {len(wrong_sign_gene_ids)} genes with at least {SMALL_COUNTS_THRESHOLD} counts where the Log2fc sign is inconsistent with the relative group mean expression values in the corresponding Group.Mean_ columns. Of these genes, {stdev_mean_ratio_gt1_count} had a group std dev to mean ratio value above 1."
             log_check_result(log_path, component_name, "all", check_name, "YELLOW", "Log2fc signs do not match expected direction based on group means", details)

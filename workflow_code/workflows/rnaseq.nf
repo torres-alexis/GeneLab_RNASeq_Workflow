@@ -761,6 +761,7 @@ workflow RNASEQ {
             VV_CONCAT_FILTER( vv_logs | collect )
             ch_published = ch_published
                 .mix( pub_vv(VV_DGE_DESEQ2.out.log, ch_root, 'VV_DESEQ2_ANALYSIS') )
+                .mix( pub(VV_DGE_DESEQ2.out.log2fc_flags, ch_root, 'VV_Logs') )
                 .mix( pub(VV_CONCAT_FILTER.out, ch_root, 'VV_Logs') )
         }
 
