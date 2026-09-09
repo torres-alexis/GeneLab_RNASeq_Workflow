@@ -3,14 +3,6 @@ process GENERATE_PROTOCOL {
         mode: params.publish_dir_mode,
         pattern: "*.txt"
 
-    publishDir path: { "${ch_outdir}/Metadata" },
-        mode: params.publish_dir_mode,
-        pattern: "runsheet/*",
-        saveAs: { filename ->
-            if (filename.startsWith("runsheet/")) return filename.replace("runsheet/", "")
-            else return filename
-        }
-
     input:
         val(ch_outdir)
         val(ch_meta)
@@ -23,7 +15,6 @@ process GENERATE_PROTOCOL {
 
     output:
         path("protocol${params.assay_suffix}.txt")
-        path("runsheet/${runsheet}")
 
     script:
         def mode = params.mode == 'microbes' ? '--mode microbes' : ''
@@ -47,8 +38,5 @@ process GENERATE_PROTOCOL {
         --reference_fasta ${reference_fasta} \
         --reference_gtf ${reference_gtf} \
         --runsheet ${runsheet}
-
-        mkdir -p runsheet
-        cp ${runsheet} runsheet/
         """
 }
