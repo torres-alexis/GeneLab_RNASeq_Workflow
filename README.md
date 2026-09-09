@@ -173,7 +173,7 @@ Both workflows automatically load reference files and organism-specific gene ann
  Below are four examples of how to run the NF_RCP workflow:
 > Note: Nextflow commands use both single hyphen arguments (e.g. -help) that denote general nextflow arguments and double hyphen arguments (e.g. --reference_version) that denote workflow specific parameters.  Take care to use the proper number of hyphens for each argument.
 
-> Note: To use Docker instead of Singularity, use `-profile docker` in the Nextflow run command. Nextflow will automatically pull images as needed.
+> Note: To use Docker or Podman instead of Singularity, use `-profile docker` or `-profile podman`. Nextflow will pull images as needed.
 
 > Note: The `-resume` parameter can be used to resume a previously interrupted workflow from where it left off (see [Nextflow documentation](https://www.nextflow.io/docs/latest/getstarted.html#modify-and-resume)) or to restart the workflow from a specific point by changing relevant parameters, which will re-execute that process and all downstream affected processes.
 
