@@ -159,6 +159,7 @@ process VV_DGE_DESEQ2 {
 
   output:
     path("VV_log.csv"), optional: params.skip_vv, emit: log
+    path("log2fc_flag_characterization*.csv"), optional: true, emit: log2fc_flags
     path("versions.yml"), emit: versions
     
   script:
