@@ -3,7 +3,7 @@ include { STAGE } from '../subworkflows/stage.nf'
 include { PARSE_ANNOTATIONS_TABLE } from '../modules/parse_annotations_table.nf'
 include { FETCH_REMOTE_TABLE as FETCH_ANNOTATIONS_CSV } from '../modules/fetch_remote.nf'
 include { FETCH_REMOTE_TABLE as FETCH_GENE_ANNOTATIONS } from '../modules/fetch_remote.nf'
-include { DOWNLOAD_REFERENCES } from '../modules/download_references.nf'
+include { DOWNLOAD_REFERENCES; COPY_REFERENCES } from '../modules/download_references.nf'
 include { SUBSAMPLE_GENOME } from '../modules/subsample_genome.nf'
 include { DOWNLOAD_ERCC } from '../modules/download_ercc.nf'
 include { CONCAT_ERCC } from '../modules/concat_ercc.nf'
@@ -231,8 +231,56 @@ workflow RNASEQ {
         channel.empty() | set { ch_versions }
 
         if ( ep != 'dge_table' ) {
-            DOWNLOAD_REFERENCES( reference_store_path, organism_sci, reference_source, reference_version, reference_fasta_url, reference_gtf_url )
-            genome_references_pre_subsample = DOWNLOAD_REFERENCES.out.reference_files
+            reference_store_path
+                .combine(organism_sci)
+                .combine(reference_source)
+                .combine(reference_version)
+                .combine(reference_fasta_url)
+                .combine(reference_gtf_url)
+                .branch { store, org, src, ver, fasta, gtf ->
+                    remote: is_remote_uri(fasta) || is_remote_uri(gtf)
+                    local: true
+                }
+                .set { ch_ref }
+
+            ch_ref.local.multiMap { store, org, src, ver, fasta, gtf ->
+                store: store
+                org: org
+                src: src
+                ver: ver
+                fasta: file(fasta)
+                gtf: file(gtf)
+            }.set { ch_ref_local }
+            COPY_REFERENCES(
+                ch_ref_local.store,
+                ch_ref_local.org,
+                ch_ref_local.src,
+                ch_ref_local.ver,
+                ch_ref_local.fasta,
+                ch_ref_local.gtf
+            )
+            ch_ref.remote.multiMap { store, org, src, ver, fasta, gtf ->
+                store: store
+                org: org
+                src: src
+                ver: ver
+                fasta_url: fasta.toString()
+                gtf_url: gtf.toString()
+                fasta_local: is_remote_uri(fasta) ? file("${projectDir}/assets/empty") : file(fasta)
+                gtf_local: is_remote_uri(gtf) ? file("${projectDir}/assets/empty") : file(gtf)
+            }.set { ch_ref_remote }
+            DOWNLOAD_REFERENCES(
+                ch_ref_remote.store,
+                ch_ref_remote.org,
+                ch_ref_remote.src,
+                ch_ref_remote.ver,
+                ch_ref_remote.fasta_url,
+                ch_ref_remote.gtf_url,
+                ch_ref_remote.fasta_local,
+                ch_ref_remote.gtf_local
+            )
+            genome_references_pre_subsample = COPY_REFERENCES.out.reference_files
+                .mix(DOWNLOAD_REFERENCES.out.reference_files)
 
             if ( params.genome_subsample ) {
                 SUBSAMPLE_GENOME( derived_store_path, organism_sci, genome_references_pre_subsample, reference_source, reference_version )
