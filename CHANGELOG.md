@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `-entry STAGE_ONLY` / `-entry POST_PROCESSING` with `--stage_only` / `--post_processing`. `--stage_only` publishes the runsheet and staged inputs for any `--entry_point`. `truncate_to` applies to raw and trimmed.
 - `--strandedness` defaults to `auto` (RSeQC infer_experiment). `none`/`forward`/`reverse` overrides. Required, no `auto` for `--entry_point bam_files`.
 - Declare explicit closure parameters (strict-parser `it` warning).
+- Allow anonymous access to public `s3://` paths (`aws.client.anonymous`).
 - Document automated ERCC analysis and required inputs per entry point.
 - Move figshare URL conversion from `PARSE_ANNOTATIONS_TABLE` to staging.
 - Update the ISA runsheet with OSDR input file URLs from `--entry_point`.
