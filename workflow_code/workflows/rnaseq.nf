@@ -43,6 +43,7 @@ include { REMOVE_RRNA_COUNTS_TABLE as REMOVE_RRNA_FC_TABLE } from '../modules/re
 include { DGE_DESEQ2 } from '../modules/dge_deseq2.nf'
 include { DGE_DESEQ2 as DGE_DESEQ2_RRNA_RM } from '../modules/dge_deseq2.nf'
 include { SPLIT_ORGANISM_PART_RUNSHEETS } from '../modules/split_organism_part_runsheets.nf'
+include { FILTER_UNALIGNABLE } from '../modules/filter_unalignable.nf'
 include { ANNOTATE_DGE_TABLE } from '../modules/annotate_dge_table.nf'
 
 include { MULTIQC as RAW_READS_MULTIQC } from '../modules/multiqc.nf'
@@ -584,13 +585,21 @@ workflow RNASEQ {
             ) )
         }
 
+        dropped_unalignable = channel.value([])
         if ( ep == 'dge_table' ) {
             ANNOTATE_DGE_TABLE( gene_annotations, ch_meta, STAGE.out.dge_table )
             ch_versions = ch_versions.mix(ANNOTATE_DGE_TABLE.out.versions)
             ch_published = ch_published.mix( pub(ANNOTATE_DGE_TABLE.out.dge_table, ch_root, '05-DESeq2_DGE') )
         } else {
             EXTRACT_RRNA( organism_sci, genome_references | map { refs -> refs[1] } )
-            SPLIT_ORGANISM_PART_RUNSHEETS( runsheet_path )
+            if ( params.drop_unalignable.toString().toBoolean() && !microbes && ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
+                FILTER_UNALIGNABLE( runsheet_path, count_mqc_data )
+                dge_runsheet = FILTER_UNALIGNABLE.out.runsheet
+                dropped_unalignable = FILTER_UNALIGNABLE.out.dropped
+            } else {
+                dge_runsheet = runsheet_path
+            }
+            SPLIT_ORGANISM_PART_RUNSHEETS( dge_runsheet )
             ch_dge_jobs = dge_jobs_from_manifest(
                 SPLIT_ORGANISM_PART_RUNSHEETS.out.manifest,
                 SPLIT_ORGANISM_PART_RUNSHEETS.out.runsheets
@@ -739,7 +748,7 @@ workflow RNASEQ {
                 dp_tools_plugin,
                 ch_outdir,
                 ch_meta,
-                runsheet_path,
+                dge_runsheet,
                 dge_table | collect,
                 dge_table_rrnarm | collect,
                 SPLIT_ORGANISM_PART_RUNSHEETS.out.stratify_by.map { f -> f.text.trim() }
@@ -768,7 +777,8 @@ workflow RNASEQ {
                 reference_source,
                 reference_version,
                 genome_references_pre_ercc,
-                runsheet_path
+                runsheet_path,
+                dropped_unalignable
             )
             ch_published = ch_published.mix( pub(GENERATE_PROTOCOL.out.protocol, ch_root, 'GeneLab') )
         }

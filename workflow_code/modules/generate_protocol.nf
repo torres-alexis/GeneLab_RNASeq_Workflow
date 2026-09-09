@@ -7,6 +7,7 @@ process GENERATE_PROTOCOL {
         val(reference_version)
         tuple(path(reference_fasta), path(reference_gtf))
         path(runsheet)
+        path(dropped_unalignable)
 
     output:
         path("protocol${params.assay_suffix}.txt"), emit: protocol
@@ -16,6 +17,8 @@ process GENERATE_PROTOCOL {
         def ref_source = reference_source ? "--reference_source ${reference_source}" : ''
         def ref_version = reference_version ? "--reference_version ${reference_version}" : ''
         def assay_suffix_arg = params.assay_suffix ? "--assay_suffix ${params.assay_suffix}" : ''
+        def dropped_arg = dropped_unalignable ? "--dropped_unalignable ${dropped_unalignable}" : ''
+        def drop_on = params.drop_unalignable.toString().toBoolean() && params.mode != 'microbes' && params.entry_point in ['raw_reads', 'trimmed_reads', 'bam_files']
 
         """
         generate_protocol.py \
@@ -32,7 +35,9 @@ process GENERATE_PROTOCOL {
         ${ref_version} \
         --reference_fasta ${reference_fasta} \
         --reference_gtf ${reference_gtf} \
-        --runsheet ${runsheet}
-
+        --runsheet ${runsheet} \
+        --drop_unalignable ${drop_on} \
+        --unalignable_threshold ${params.unalignable_threshold} \
+        ${dropped_arg}
         """
 }
