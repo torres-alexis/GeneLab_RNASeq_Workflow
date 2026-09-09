@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Publish via entry-workflow `output {}` instead of process `publishDir`.
 - Drop unused process emits. Publish rRNArm `genes.results` from sample meta instead of the filename.
 - Publish FeatureCounts `NumNonZeroGenes`.
+- Add `-profile pbspro`. PBS `ncpus`/`mem` go in `clusterOptions`; `cpus`/`memory` stay for `task.*`. Optional `--pbs_internet_queue` for fetch/download jobs.
+- Fetch the annotations CSV, gene-annotation table, and remote `--counts_table_path` / `--dge_table_path` in worker processes.
 
 ### Fixed
 

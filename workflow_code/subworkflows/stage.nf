@@ -145,12 +145,22 @@ workflow STAGE {
 
         if ( counts_override ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-            COPY_COUNTS_TABLE(file(params.counts_table_path))
+            if ( is_remote_uri(params.counts_table_path) ) {
+                FETCH_REMOTE_COUNTS_TABLE( channel.value(params.counts_table_path.toString()) )
+                COPY_COUNTS_TABLE( FETCH_REMOTE_COUNTS_TABLE.out.table )
+            } else {
+                COPY_COUNTS_TABLE( file(params.counts_table_path) )
+            }
             counts_table = COPY_COUNTS_TABLE.out.counts_table
             published = published.mix( pub(COPY_COUNTS_TABLE.out.counts_table, ch_root, params.mode == 'microbes' ? '03-FeatureCounts' : '03-RSEM_Counts') )
         } else if ( dge_override ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-            COPY_DGE_TABLE(file(params.dge_table_path))
+            if ( is_remote_uri(params.dge_table_path) ) {
+                FETCH_REMOTE_DGE_TABLE( channel.value(params.dge_table_path.toString()) )
+                COPY_DGE_TABLE( FETCH_REMOTE_DGE_TABLE.out.table )
+            } else {
+                COPY_DGE_TABLE( file(params.dge_table_path) )
+            }
             dge_table = COPY_DGE_TABLE.out.dge_table
             published = published.mix( pub(COPY_DGE_TABLE.out.dge_table, ch_root, '05-DESeq2_DGE') )
         } else if ( ep == 'raw_reads' ) {

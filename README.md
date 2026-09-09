@@ -270,7 +270,7 @@ Defaults:
 
 * `NF_RCP_2.1.1/main.nf` - Instructs Nextflow to run the NF_RCP workflow 
 
-* `-profile` - Specifies the configuration profile(s) to load, `singularity` instructs Nextflow to setup and use singularity for all software called in the workflow; use `local` for local execution ([local.config](workflow_code/conf/local.config)) or `slurm` for SLURM cluster execution ([slurm.config](workflow_code/conf/slurm.config))
+* `-profile` - Specifies the configuration profile(s) to load, `singularity` instructs Nextflow to setup and use singularity for all software called in the workflow; use `local` for local execution ([local.config](workflow_code/conf/local.config)) or `slurm` for SLURM cluster execution ([slurm.config](workflow_code/conf/slurm.config)) or `pbspro` for PBS Pro cluster execution ([pbspro.config](workflow_code/conf/pbspro.config))
   > Note: The output directory will be named `GLDS-#` when using a OSD or GLDS accession as input, or `results` when running the workflow with only a runsheet as input.
 
 <br>
@@ -345,6 +345,12 @@ Defaults:
 * `--reference_store_path` - specifies the directory to store the reference fasta and gtf files (type: string, default: "./References")  
 
 * `--derived_store_path` - specifies the directory to store the tool-specific indices created during processing (type: string, default: "./DerivedReferences")
+
+* `--pbs_queue` - PBS Pro queue when using `-profile pbspro` (default: `normal`)
+
+* `--pbs_model` - PBS node model when using `-profile pbspro` (type: string, default: none). Adds `:model=<name>` to the job request. Leave unset if the scheduler does not use a model resource.
+
+* `--pbs_internet_queue` - PBS queue for fetch/download processes when using `-profile pbspro` (default: none). Empty uses `--pbs_queue`.
 
 * `--mode` - specifies which pipeline to use: set to `default` to run GL-DPPD-7101-G pipeline or set to `microbes` for the GL-DPPD-7115 prokaryotic pipeline (type: string, default: "default")
   > Note: This allows the workflow to process either eukaryotic (default) or prokaryotic RNAseq data using the appropriate pipeline.

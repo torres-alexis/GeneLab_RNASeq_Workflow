@@ -78,6 +78,21 @@
           "type": "string",
           "hidden": true,
           "description": "TO DO: implement"
+        },
+        "pbs_queue": {
+          "type": "string",
+          "default": "normal",
+          "description": "PBS Pro queue. Used with `-profile pbspro`."
+        },
+        "pbs_model": {
+          "type": "string",
+          "default": "",
+          "description": "PBS model resource in clusterOptions. Empty omits :model=."
+        },
+        "pbs_internet_queue": {
+          "type": "string",
+          "default": "",
+          "description": "PBS queue for fetch/download processes. Empty uses --pbs_queue."
         }
       }
     },
