@@ -19,6 +19,7 @@ check_raw_fastqc_existence: Verify FastQC output files exist (HTML and ZIP files
 check_samples_multiqc: Confirm all samples are included in the MultiQC report
 get_raw_multiqc_stats: Extract FastQC metrics from MultiQC report
 report_multiqc_outliers: Identify and report outliers in FastQC metrics
+check_raw_read_lengths: RED if FastQC reports more than one raw read length
 check_paired_read_counts: Ensure paired-end reads have matching read counts
 report_read_depth_stats: Log statistics about sequencing depth across all samples
 report_duplication_rate_stats: Log statistics about duplication rates across all samples
@@ -515,6 +516,58 @@ def get_raw_multiqc_stats(outdir, samples, paired_end, log_path, assay_suffix="_
                            f"Error extracting MultiQC stats: {str(e)}", "")
             return False
 
+def _fastqc_len(value):
+    if value in (None, ''):
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(int(value))
+    text = str(value).strip()
+    if not text:
+        return None
+    if '-' in text:
+        return text
+    try:
+        return str(int(float(text)))
+    except (ValueError, TypeError):
+        return None
+
+
+def _fastqc_seq_len(raw_fastqc, keys):
+    for key in keys:
+        if key and key in raw_fastqc:
+            value = raw_fastqc[key].get('Sequence length')
+            if value not in (None, ''):
+                return value
+    return None
+
+
+def raw_read_length_flag(multiqc_data):
+    found = []
+    if multiqc_data:
+        paired = any(any(k.endswith('_r') for k in d) for d in multiqc_data.values())
+        for sample, d in multiqc_data.items():
+            for end, key in (('R1', 'raw_sequence_length_f'), ('R2', 'raw_sequence_length_r')):
+                disp = _fastqc_len(d.get(key))
+                if disp is None:
+                    continue
+                found.append((f"{sample} {end}" if paired else sample, disp))
+    if not found:
+        return ("YELLOW", "No Sequence length data found", "")
+    unique = sorted({disp for _, disp in found})
+    details = "; ".join(f"{label}={disp}" for label, disp in found)
+    if len(unique) == 1 and '-' not in unique[0]:
+        return ("GREEN", f"Single raw read length: {unique[0]}", details)
+    return ("RED", f"Multiple raw read lengths found: {'; '.join(unique)}", details)
+
+
+def check_raw_read_lengths(multiqc_data, log_path):
+    status, message, details = raw_read_length_flag(multiqc_data)
+    print(f"Raw read lengths: {message}")
+    if details:
+        print(f"  {details}")
+    log_check_result(log_path, "raw_reads", "all", "check_raw_read_lengths", status, message, details)
+    return status == "GREEN"
+
 def parse_fastqc(prefix, assay_suffix):
     """Parse MultiQC JSON data to extract FastQC metrics."""
     # Updated path to directly access the multiqc_data.json in the data directory
@@ -555,6 +608,8 @@ def parse_fastqc(prefix, assay_suffix):
                 sample_groups[base_name] = {'f': None, 'r': None}
             sample_groups[base_name]['f'] = sample
 
+    raw_fastqc = j.get('report_saved_raw_data', {}).get('multiqc_fastqc', {})
+
     data = {}
     # Process each sample group
     for base_name, reads in sample_groups.items():
@@ -565,12 +620,18 @@ def parse_fastqc(prefix, assay_suffix):
             for k, v in j['report_general_stats_data'][-1][reads['f']].items():
                 if k != 'percent_fails':
                     data[base_name][prefix + '_' + k + '_f'] = v
+            seq_len = _fastqc_seq_len(raw_fastqc, (reads['f'], f"{base_name}_R1", f"{base_name} Read 1"))
+            if seq_len is not None:
+                data[base_name][prefix + '_sequence_length_f'] = seq_len
                     
         # Process reverse read
         if reads['r']:
             for k, v in j['report_general_stats_data'][-1][reads['r']].items():
                 if k != 'percent_fails':
                     data[base_name][prefix + '_' + k + '_r'] = v
+            seq_len = _fastqc_seq_len(raw_fastqc, (reads['r'], f"{base_name}_R2", f"{base_name} Read 2"))
+            if seq_len is not None:
+                data[base_name][prefix + '_sequence_length_r'] = seq_len
 
     # Process other stats sections (quality, GC, etc)
     for section, suffix in [
@@ -1021,6 +1082,7 @@ def main():
     # 7. Report MultiQC stats outliers
     if multiqc_data:
         report_multiqc_outliers(args.outdir, multiqc_data, vv_log_path)
+        check_raw_read_lengths(multiqc_data, vv_log_path)
         
         # 8. Check paired read counts match (for paired-end data)
         check_paired_read_counts(multiqc_data, vv_log_path, paired_end_values)

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Run ERCC spike-in analysis after RSEM quantification when applicable. Publishes the executed notebook, HTML, and tables under `ERCC_Analysis`.
 - ERCC notebook prints the ISA zip listing and prompts for file indices when metadata selection fails.
+- Raw VV flags multiple FastQC read lengths as RED.
+- Flag STAR uniquely mapped, RSEM unique, and featureCounts assigned rates below 50% as RED.
 
 ### Changed
 

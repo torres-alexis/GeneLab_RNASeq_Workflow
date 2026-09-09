@@ -760,6 +760,12 @@ def main():
         
         # Check mapping rates against thresholds
         check_mapping_rates(args.outdir, star_data, vv_log_path)
+        rates = {str(s): float(d["uniquely_mapped_percent"]) for s, d in star_data.items()}
+        details = "; ".join(f"{s}={p:.1f}" for s, p in sorted(rates.items()))
+        low = "; ".join(f"{s}={p:.1f}" for s, p in sorted(rates.items()) if p < 50)
+        status, message = ("RED", f"uniquely_mapped <50%: {low}") if low else ("GREEN", "All uniquely_mapped ≥50%")
+        print(message)
+        log_check_result(vv_log_path, "STAR_alignment", "all", "check_rate_lt_50", status, message, details)
     
     print("STAR alignment validation complete")
 
