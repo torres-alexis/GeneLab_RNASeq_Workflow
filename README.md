@@ -307,7 +307,7 @@ nextflow run NF_RCP_2.1.1/main.nf \
 
 * `--dge_table_path` - Specifies a path to a DGE table file (`.csv`). Used with `dge_table` entry point
 
-* `--stage_only` - Publish the runsheet and raw reads, then exit (type: boolean, default: false)
+* `--stage_only` - Publish the runsheet and staged inputs for the current `--entry_point`, then exit. `truncate_to` applies to raw and trimmed reads (type: boolean, default: false)
 
 * `--post_processing` - Update the assay table and generate md5sums for `${outdir}/${accession}` (type: boolean, default: false)
 

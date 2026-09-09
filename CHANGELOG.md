@@ -19,9 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean up ERCC notebook and fix count-axis labels.
 - Condensed the Nextflow mode and entry point subworkflows into `rnaseq.nf`.
 - Require Nextflow 26.04 or later.
-- Replace `-entry STAGE_ONLY` / `-entry POST_PROCESSING` with `--stage_only` / `--post_processing`.
+- Replace `-entry STAGE_ONLY` / `-entry POST_PROCESSING` with `--stage_only` / `--post_processing`. `--stage_only` publishes the runsheet and staged inputs for any `--entry_point`. `truncate_to` applies to raw and trimmed.
 - `--strandedness` defaults to `auto` (RSeQC infer_experiment). `none`/`forward`/`reverse` overrides. Required, no `auto` for `--entry_point bam_files`.
 - Declare explicit closure parameters (strict-parser `it` warning).
+- Move figshare URL conversion from `PARSE_ANNOTATIONS_TABLE` to staging.
+- Update the ISA runsheet with OSDR input file URLs from `--entry_point`.
 - Fetch remote runsheet FASTQ/BAM/genes.results (`://`) in module processes. Local paths still use `file()` + `path`.
 - Keep `truncate_to` first-N FASTQ behavior (`splitFastq(limit: N)`), but run it in module processes instead of the head node.
 - Updated `dp_tools` quay image tag from `1.3.8` to `1.3.8-slim`. Added `wget`, `awscli`, `unzip`, `procps`.

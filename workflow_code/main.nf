@@ -71,10 +71,25 @@ workflow STAGE_ONLY {
             params.runsheet_path ? channel.fromPath(params.runsheet_path) : null,
             channel.value(params.api_url)
         )
+        def ep = params.entry_point
+        if (ep == 'raw_reads') {
+            ch_staged = STAGE.out.raw_reads.map { _meta, files -> files }.flatten()
+        } else if (ep == 'trimmed_reads') {
+            ch_staged = STAGE.out.trimmed_reads.map { _meta, files -> files }.flatten()
+        } else if (ep == 'bam_files') {
+            ch_staged = STAGE.out.bam_files.map { _meta, files -> files }.flatten()
+        } else if (ep == 'genes_results') {
+            ch_staged = STAGE.out.genes_results.map { _meta, files -> files }.flatten()
+        } else if (ep == 'counts_table') {
+            ch_staged = STAGE.out.counts_table
+        } else if (ep == 'dge_table') {
+            ch_staged = STAGE.out.dge_table
+        }
         PUBLISH_STAGED_ANALYSIS(
             STAGE.out.ch_outdir,
             STAGE.out.runsheet_path,
-            STAGE.out.raw_reads.map { sample -> sample[1] }.collect()
+            ch_staged.collect(),
+            channel.value(ep)
         )
 }
 
