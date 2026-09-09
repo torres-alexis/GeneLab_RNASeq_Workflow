@@ -18,7 +18,7 @@
 | Column Name | Type | Description | Example |
 |:------------|:-----|:------------|:--------|
 | Sample Name | string | Sample Name, added as a prefix to sample-specific processed data output files. Should not include spaces or weird characters. | Mmus_BAL-TAL_LRTN_BSL_Rep1_B7 |
-| has_ERCC | bool | Set to True if ERCC spike-ins are included in the samples. This ensures ERCC normalized DGE is performed in addition to standard DGE. | True |
+| has_ERCC | bool | Set to True if ERCC spike-ins are included. Concatenates ERCC sequences onto the reference. For `--mode default`, also runs ERCC analysis after quantification. | True |
 | paired_end | bool | Set to True if the samples were sequenced as paired-end. If set to False, samples are assumed to be single-end. | False |
 | organism | string | Species name used to map to the appropriate gene annotations file. Supported species can be found in the `species` column of the [GL-DPPD-7110-A_annotations.csv](https://github.com/nasa/GeneLab_Data_Processing/blob/master/GeneLab_Reference_Annotations/Pipeline_GL-DPPD-7110_Versions/GL-DPPD-7110-A/GL-DPPD-7110-A_annotations.csv) file. | Mus musculus |
 | read1_path | string (url or local path) | Location of the raw reads file. For paired-end data, this specifies the forward reads fastq.gz file. | /my/data/sample_1.fastq.gz |
@@ -28,14 +28,16 @@
 
 ## Entry Point Columns
 
-For entry points other than the default `raw_reads`, include the relevant columns below to specify the input files:
+For entry points other than the default `raw_reads`, include the relevant columns below to specify the input files. Additional required parameters (reference fasta and gtf, `--strandedness`) are listed in the main [README](../../README.md#4e-entry-points-and-required-inputs).
 
 | Column Name | Entry Point | Type | Description | Example |
 |:------------|:------------|:-----|:------------|:--------|
 | trimmed_read1_path | trimmed_reads | string | Path to trimmed forward reads file | /my/data/sample_1_trimmed.fastq.gz |
 | trimmed_read2_path | trimmed_reads | string | Path to trimmed reverse reads file (paired-end only) | /my/data/sample_2_trimmed.fastq.gz |
 | bam_path | bam_files | string | Path to aligned BAM file | /my/data/sample_aligned.bam |
-| genes_results_path | genes_results | string | Path to RSEM .genes.results file (`--mode default` only) | /my/data/sample.genes.results |
+| genes_results_path | genes_results | string | Path or URL to RSEM genes.results | /my/data/sample.genes.results |
+| counts_table_path | counts_table | string | Path to the raw counts table. Alternatively, pass in the input file with `--counts_table_path` | /my/data/Unnormalized_Counts.csv |
+| dge_table_path | dge_table | string | Path to the DGE table. Alternatively, pass in the input file with `--dge_table_path` | /my/data/differential_expression.csv |
 
 ## Optional columns
 
