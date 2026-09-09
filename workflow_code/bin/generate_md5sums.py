@@ -74,6 +74,9 @@ def should_include(filepath, outdir):
         # In MultiQC_Reports, only allow .zip or .html
         if not (filepath.endswith('.zip') or filepath.endswith('.html')):
             return False
+    # ERCC: only the analysis HTML
+    if "ERCC_Analysis" in filepath:
+        return basename == f"ERCC_analysis{args.assay_suffix}.html"
     # RSEM: Only keep .genes.results and .isoforms.results (including _rRNArm variants)
     if basename.endswith('.genes.results') or basename.endswith('.isoforms.results'):
         return True

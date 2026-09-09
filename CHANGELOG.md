@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.1]
 
+### Added
+
+- Run applicable ERCC spike-in analysis after RSEM quantification; publish notebooks, HTML and tables under `ERCC_Analysis`.
+
 ### Changed
 
 - Require Nextflow 26.04 or later.
@@ -14,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default `--strandedness` to `auto`; BAM entry requires `none`, `forward` or `reverse`.
 - Fetch remote inputs in worker processes. Apply `truncate_to` to raw and trimmed reads there.
 - Update the `dp_tools` image to `1.3.8-slim`.
+
+### Fixed
+
+- Correct ERCC count-axis labels.
 
 ## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.1.0) - 2025-12-09
 
