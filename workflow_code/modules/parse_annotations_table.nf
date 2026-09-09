@@ -56,6 +56,13 @@ process PARSE_ANNOTATIONS_TABLE {
             println "            Reference Version: ${reference_version}"
         }
     } else {
+        def have_refs = params.reference_fasta && params.reference_gtf
+        if ( params.entry_point != 'dge_table' && !have_refs ) {
+            throw new RuntimeException(
+                "Organism '${organism_key}' is not in the annotations table. " +
+                "Pass --reference_fasta and --reference_gtf."
+            )
+        }
         println "WARNING: Organism '${organism_key}' not found in annotations table."
         println "Returning null values for all outputs."
         fasta_url = null

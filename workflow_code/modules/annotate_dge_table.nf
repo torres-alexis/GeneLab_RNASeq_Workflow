@@ -7,7 +7,7 @@ process ANNOTATE_DGE_TABLE {
 
     input:
         val(publishdir)
-        path(gene_annotations), optional: true
+        path(gene_annotations)
         val(meta)
         path("?.csv")
 

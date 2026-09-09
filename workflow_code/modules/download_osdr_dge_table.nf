@@ -35,7 +35,7 @@ process DOWNLOAD_OSDR_DGE_TABLE {
     fi
     
     echo "Downloading DGE table: \$dge_url"
-    wget -q -O dge_temp.csv "\$dge_url" || exit 1
+    fetch_uri.sh "\$dge_url" dge_temp.csv
     
     mv dge_temp.csv "${output_name}"
     """

@@ -43,7 +43,7 @@ process DOWNLOAD_OSDR_COUNTS_TABLE {
     fi
     
     echo "Downloading counts table: \$counts_url"
-    wget -q -O counts_temp.csv "\$counts_url" || exit 1
+    fetch_uri.sh "\$counts_url" counts_temp.csv
     
     mv counts_temp.csv "${output_name}"
     """

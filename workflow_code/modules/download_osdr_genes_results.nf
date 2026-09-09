@@ -37,7 +37,7 @@ process DOWNLOAD_OSDR_GENES_RESULTS {
     fi
     
     echo "Downloading genes.results: \$genes_url"
-    wget -q -O genes_temp.genes.results "\$genes_url" || exit 1
+    fetch_uri.sh "\$genes_url" genes_temp.genes.results
     
     mv genes_temp.genes.results "${meta.id}${params.assay_suffix}.genes.results"
     """

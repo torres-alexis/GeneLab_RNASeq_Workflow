@@ -13,7 +13,13 @@ include { COPY_BAMS } from '../modules/copy_bams.nf'
 include { COPY_GENES_RESULTS } from '../modules/copy_genes_results.nf'
 include { COPY_COUNTS_TABLE } from '../modules/copy_counts_table.nf'
 include { COPY_DGE_TABLE } from '../modules/copy_dge_table.nf'
+include { FETCH_REMOTE_BAM; FETCH_REMOTE_GENES_RESULTS } from '../modules/fetch_remote.nf'
 include { validateParameters } from 'plugin/nf-schema'
+
+def is_remote_uri(p) {
+    def s = p == null ? "" : p.toString().trim()
+    return s.contains("://")
+}
 
 def entry_parse_types() {
     return [
@@ -174,12 +180,22 @@ workflow STAGE {
             samples_txt = STAGE_READS.out.samples_txt
         } else if ( ep == 'bam_files' ) {
             samples = PARSE_RUNSHEET.out.samples
-            COPY_BAMS(ch_outdir, samples)
+            ch_bam = samples.branch { meta, files ->
+                remote: files && files.size() > 0 && is_remote_uri(files[0])
+                local: true
+            }
+            FETCH_REMOTE_BAM( ch_bam.remote )
+            COPY_BAMS(ch_outdir, FETCH_REMOTE_BAM.out.bam_files.mix(ch_bam.local))
             bam_files = COPY_BAMS.out.bam_files
             samples_txt = samples_txt_from(bam_files)
         } else if ( ep == 'genes_results' ) {
             samples = PARSE_RUNSHEET.out.samples
-            COPY_GENES_RESULTS(ch_outdir, samples)
+            ch_genes = samples.branch { meta, files ->
+                remote: files && files.size() > 0 && is_remote_uri(files[0])
+                local: true
+            }
+            FETCH_REMOTE_GENES_RESULTS( ch_genes.remote )
+            COPY_GENES_RESULTS(ch_outdir, FETCH_REMOTE_GENES_RESULTS.out.genes_results.mix(ch_genes.local))
             genes_results = COPY_GENES_RESULTS.out.genes_results
             samples_txt = samples_txt_from(genes_results)
         } else if ( ep == 'counts_table' ) {
