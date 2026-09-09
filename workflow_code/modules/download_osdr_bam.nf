@@ -5,7 +5,10 @@
 process DOWNLOAD_OSDR_BAM {
     tag "Sample: ${ meta.id }"
     
-    publishDir path: { "${ publishdir }/02-STAR_Alignment/" + meta.id },
+    publishDir path: {
+        def base = params.mode == "microbes" ? "02-Bowtie2_Alignment" : "02-STAR_Alignment"
+        return "${publishdir}/${base}/${meta.id}"
+    },
         mode: params.publish_dir_mode
 
     input:
@@ -44,7 +47,7 @@ process DOWNLOAD_OSDR_BAM {
     fi
     
     echo "Downloading BAM: \$bam_url"
-    wget -q -O bam_temp.bam "\$bam_url" || exit 1
+    fetch_uri.sh "\$bam_url" bam_temp.bam
     
     mv bam_temp.bam "${output_name}"
     """

@@ -45,10 +45,10 @@ process DOWNLOAD_OSDR_READS {
         fi
         
         echo "Downloading R1: \$r1_url"
-        wget -q -O r1.fastq.gz "\$r1_url" || exit 1
+        fetch_uri.sh "\$r1_url" r1.fastq.gz
         
         echo "Downloading R2: \$r2_url"
-        wget -q -O r2.fastq.gz "\$r2_url" || exit 1
+        fetch_uri.sh "\$r2_url" r2.fastq.gz
         
         mv r1.fastq.gz "${meta.id}${params.assay_suffix}_R1_${read_type}.fastq.gz"
         mv r2.fastq.gz "${meta.id}${params.assay_suffix}_R2_${read_type}.fastq.gz"
@@ -77,7 +77,7 @@ process DOWNLOAD_OSDR_READS {
         fi
         
         echo "Downloading SE: \$se_url"
-        wget -q -O se.fastq.gz "\$se_url" || exit 1
+        fetch_uri.sh "\$se_url" se.fastq.gz
         
         mv se.fastq.gz "${meta.id}${params.assay_suffix}_${read_type}.fastq.gz"
     fi

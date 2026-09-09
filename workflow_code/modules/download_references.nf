@@ -20,17 +20,15 @@ process DOWNLOAD_REFERENCES {
   mkdir -p temp_fasta temp_gtf
 
   # Handle fasta file
-  if [[ "${fasta_url}" == http* ]]; then
-    wget --directory-prefix temp_fasta "${fasta_url}"
+  if [[ "${fasta_url}" == *://* ]]; then
+    fetch_uri.sh "${fasta_url}" "temp_fasta/\$(basename "${fasta_url}")"
   else
-    # It's a file path - just copy it directly to main directory
     cp "${fasta_url}" temp_fasta
   fi
   
-  if [[ "${gtf_url}" == http* ]]; then
-    wget --directory-prefix temp_gtf "${gtf_url}"
+  if [[ "${gtf_url}" == *://* ]]; then
+    fetch_uri.sh "${gtf_url}" "temp_gtf/\$(basename "${gtf_url}")"
   else
-    # It's a file path - just copy it directly to main directory
     cp "${gtf_url}" temp_gtf
   fi
     

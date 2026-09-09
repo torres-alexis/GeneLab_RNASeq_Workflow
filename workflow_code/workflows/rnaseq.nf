@@ -66,11 +66,9 @@ def strandedness_set() {
 }
 
 def convert_strandedness(p) {
-    switch ( p ) {
-        case 'forward': return 'sense'
-        case 'reverse': return 'antisense'
-        default:        return 'unstranded'
-    }
+    if ( p == 'forward' ) { return 'sense' }
+    if ( p == 'reverse' ) { return 'antisense' }
+    return 'unstranded'
 }
 
 def rewrite_figshare(url) {

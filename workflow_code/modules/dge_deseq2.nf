@@ -16,7 +16,7 @@ process DGE_DESEQ2 {
     input:
         val(publishdir)
         val(meta)
-        path(gene_annotations), optional: true
+        path(gene_annotations)
         path(runsheet_path)
         path(gene_counts)
         path("dge_deseq2.Rmd")

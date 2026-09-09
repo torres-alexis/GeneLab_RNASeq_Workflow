@@ -64,6 +64,16 @@ def row_to_meta(LinkedHashMap row) {
     return meta
 }
 
+def is_remote_uri(p) {
+    def s = p == null ? "" : p.toString().trim()
+    return s.contains("://")
+}
+
+def stage_runsheet_path(p) {
+    def s = p.toString().trim()
+    return is_remote_uri(s) ? s : file(s)
+}
+
 def require_col(LinkedHashMap row, String col, String type) {
     def v = row.containsKey(col) ? row[col] : null
     if (v == null || v.toString().trim() == "") {
@@ -90,9 +100,13 @@ def get_runsheet_paths(LinkedHashMap row, String type) {
         return [meta, []]
     }
     def files = []
-    spec.files.each { col -> files.add(file(require_col(row, col, type))) }
+    spec.files.each { col -> files.add(stage_runsheet_path(require_col(row, col, type))) }
     if (meta.paired_end && spec.paired) {
-        spec.paired.each { col -> files.add(file(require_col(row, col, type))) }
+        spec.paired.each { col -> files.add(stage_runsheet_path(require_col(row, col, type))) }
+    }
+    def remote = files.collect { f -> is_remote_uri(f) }
+    if ( remote.any { r -> r } && remote.any { r -> !r } ) {
+        throw new RuntimeException("Sample '${meta.id}': mix of remote and local paths in the runsheet")
     }
     return [meta, files]
 }
