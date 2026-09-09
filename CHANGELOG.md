@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fetch remote annotation tables and references in worker processes.
 - Rename `stage_raw_reads.nf` to `stage_reads.nf` (raw and trimmed).
 - Split DGE by `Factor Value[organism part]` when that factor has multiple values. Outputs are labeled with the factor condition. Used to run DGE on plant datasets with samples from different organism parts.
+- `--drop_unalignable` excludes samples from DGE when RSEM `pct_unalignable` is at or above `--unalignable_threshold` (default 60). On by default. Default mode only. `--drop_unalignable false` to keep all samples.
 
 ### Fixed
 
