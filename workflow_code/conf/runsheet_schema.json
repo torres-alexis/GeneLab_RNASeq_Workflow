@@ -90,14 +90,22 @@
             "paired_end",
             "organism"
         ],
-        "if": {
-            "properties": {
-                "paired_end": { "const": true }
+        "allOf": [
+            {
+                "if": {
+                    "properties": { "paired_end": { "const": true } },
+                    "required": ["read1_path"]
+                },
+                "then": { "required": ["read2_path"] }
+            },
+            {
+                "if": {
+                    "properties": { "paired_end": { "const": true } },
+                    "required": ["trimmed_read1_path"]
+                },
+                "then": { "required": ["trimmed_read2_path"] }
             }
-        },
-        "then": {
-            "required": ["read2_path"]
-        },
+        ],
         "minItems": 2
     }
 }
