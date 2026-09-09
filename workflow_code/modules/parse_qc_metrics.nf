@@ -1,5 +1,5 @@
 process PARSE_QC_METRICS {
-    publishDir "${ publishdir }/GeneLab",
+    publishDir path: { "${ publishdir }/GeneLab" },
     mode: params.publish_dir_mode
 
     input:

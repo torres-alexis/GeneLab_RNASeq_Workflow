@@ -1,7 +1,7 @@
 process SORT_AND_INDEX_BAM {
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }/${ meta.id }",
+  publishDir path: { publishdir + "/" + meta.id },
     pattern:  "*.{bam,bai}" ,
     mode: params.publish_dir_mode
 

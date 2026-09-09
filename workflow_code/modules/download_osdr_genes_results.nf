@@ -5,7 +5,7 @@
 process DOWNLOAD_OSDR_GENES_RESULTS {
     tag "Sample: ${ meta.id }"
     
-    publishDir "${ publishdir }/03-RSEM_Counts/${meta.id}",
+    publishDir path: { "${ publishdir }/03-RSEM_Counts/" + meta.id },
         mode: params.publish_dir_mode
 
     input:

@@ -6,12 +6,12 @@
 process ALIGN_BOWTIE2 {
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }/${ meta.id }",
-    pattern: "${ meta.id }${ params.assay_suffix }.bowtie2.log",
+  publishDir path: { publishdir + "/" + meta.id },
+    pattern: { "${ meta.id }${ params.assay_suffix }.bowtie2.log" },
     mode: params.publish_dir_mode
 
-  publishDir "${ publishdir }/${ meta.id }",
-    pattern: "${ meta.id }${ params.assay_suffix }_*unmapped.fastq.gz",
+  publishDir path: { publishdir + "/" + meta.id },
+    pattern: { "${ meta.id }${ params.assay_suffix }_*unmapped.fastq.gz" },
     mode: params.publish_dir_mode
 
   input:

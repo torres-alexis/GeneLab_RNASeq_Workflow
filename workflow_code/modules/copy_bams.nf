@@ -1,10 +1,11 @@
 process COPY_BAMS {
     tag "Sample: ${meta.id}"
     
-    publishDir { 
-        params.mode == "microbes" ? 
-            "${ publishdir }/02-Bowtie2_Alignment/${meta.id}" : 
-            "${ publishdir }/02-STAR_Alignment/${meta.id}" 
+    publishDir {
+        def base = params.mode == "microbes" ?
+            publishdir + "/02-Bowtie2_Alignment/" :
+            publishdir + "/02-STAR_Alignment/"
+        return base + meta.id
     },
         mode: params.publish_dir_mode
 

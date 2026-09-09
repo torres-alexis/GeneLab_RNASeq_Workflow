@@ -1,8 +1,8 @@
 process GENEBODY_COVERAGE {
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }/${ meta.id }",
-    pattern:  "${ meta.id }.geneBodyCoverage.*" ,
+  publishDir path: { publishdir + "/" + meta.id },
+    pattern: { "${ meta.id }.geneBodyCoverage.*" },
     mode: params.publish_dir_mode
 
   input:
@@ -30,7 +30,7 @@ process GENEBODY_COVERAGE {
 process INFER_EXPERIMENT {
   tag "Sample: ${meta.id}"
 
-  publishDir "${ publishdir }",
+  publishDir path: { "${ publishdir }" },
     pattern:  "*.out" ,
     mode: params.publish_dir_mode
 
@@ -58,7 +58,7 @@ process INFER_EXPERIMENT {
 process INNER_DISTANCE {
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }/${ meta.id }",
+  publishDir path: { publishdir + "/" + meta.id },
     pattern:  "*.inner_distance*" ,
     mode: params.publish_dir_mode
 
@@ -92,8 +92,8 @@ process INNER_DISTANCE {
 process READ_DISTRIBUTION {
   tag "Sample: ${ meta.id }"
 
-  publishDir "${ publishdir }",
-    pattern:  "${ meta.id }.read_dist.out" ,
+  publishDir path: { "${ publishdir }" },
+    pattern: { "${ meta.id }.read_dist.out" },
     mode: params.publish_dir_mode
 
   input:

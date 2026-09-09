@@ -1,58 +1,62 @@
 // Adapted from Function: https://github.com/nf-core/rnaseq/blob/master/modules/local/process/samplesheet_check.nf
 // Function to get list of [ meta, [ fastq_1_path, fastq_2_path ] ]
-GENE_ID_TYPES = [
-    // Mammals
-    "homo_sapiens": "ENSEMBL",
-    "mus_musculus": "ENSEMBL",
-    "rattus_norvegicus": "ENSEMBL",
+def gene_id_types() {
+    return [
+        // Mammals
+        "homo_sapiens": "ENSEMBL",
+        "mus_musculus": "ENSEMBL",
+        "rattus_norvegicus": "ENSEMBL",
 
-    // Other Vertebrates
-    "danio_rerio": "ENSEMBL",
-    "oryzias_latipes": "ENSEMBL",
+        // Other Vertebrates
+        "danio_rerio": "ENSEMBL",
+        "oryzias_latipes": "ENSEMBL",
 
-    // Invertebrates
-    "caenorhabditis_elegans": "ENSEMBL",
-    "drosophila_melanogaster": "ENSEMBL",
+        // Invertebrates
+        "caenorhabditis_elegans": "ENSEMBL",
+        "drosophila_melanogaster": "ENSEMBL",
 
-    // Plants
-    "arabidopsis_thaliana": "TAIR",
-    "brachypodium_distachyon": "ENSEMBL",
-    "oryza_sativa": "ENSEMBL",
+        // Plants
+        "arabidopsis_thaliana": "TAIR",
+        "brachypodium_distachyon": "ENSEMBL",
+        "oryza_sativa": "ENSEMBL",
 
-    // Microbes
-    "bacillus_subtilis": "ENSEMBL",
-    "escherichia_coli": "ENSEMBL",
-    "lactobacillus_acidophilus": "LOCUS",
-    "mycobacterium_marinum": "LOCUS",
-    "pseudomonas_aeruginosa": "LOCUS",
-    "salmonella_enterica": "ENSEMBL",
-    "saccharomyces_cerevisiae": "ENSEMBL",
-    "serratia_liquefaciens": "LOCUS",
-    "staphylococcus_aureus": "LOCUS",
-    "streptococcus_mutans": "LOCUS",
-    "vibrio_fischeri": "LOCUS"
-]
+        // Microbes
+        "bacillus_subtilis": "ENSEMBL",
+        "escherichia_coli": "ENSEMBL",
+        "lactobacillus_acidophilus": "LOCUS",
+        "mycobacterium_marinum": "LOCUS",
+        "pseudomonas_aeruginosa": "LOCUS",
+        "salmonella_enterica": "ENSEMBL",
+        "saccharomyces_cerevisiae": "ENSEMBL",
+        "serratia_liquefaciens": "LOCUS",
+        "staphylococcus_aureus": "LOCUS",
+        "streptococcus_mutans": "LOCUS",
+        "vibrio_fischeri": "LOCUS"
+    ]
+}
 
 // type -> runsheet columns. paired extras only used when meta.paired_end.
 // counts/dge are dataset-wide paths (not per-sample files).
-RUNSHEET_COLS = [
-    raw:      [files: ['read1_path'],              paired: ['read2_path']],
-    trimmed:  [files: ['trimmed_read1_path'],      paired: ['trimmed_read2_path']],
-    bam:      [files: ['bam_path']],
-    genes:    [files: ['genes_results_path']],
-    counts:   [table: 'counts_table_path'],
-    dge:      [table: 'dge_table_path'],
-    meta:     [:]
-]
+def runsheet_cols() {
+    return [
+        raw:      [files: ['read1_path'],              paired: ['read2_path']],
+        trimmed:  [files: ['trimmed_read1_path'],      paired: ['trimmed_read2_path']],
+        bam:      [files: ['bam_path']],
+        genes:    [files: ['genes_results_path']],
+        counts:   [table: 'counts_table_path'],
+        dge:      [table: 'dge_table_path'],
+        meta:     [:]
+    ]
+}
 
 def row_to_meta(LinkedHashMap row) {
     def meta = [:]
     meta.id = row["Sample Name"]
     meta.organism_sci = row.organism.replaceAll(" ","_").toLowerCase()
-    meta.gene_id_type = GENE_ID_TYPES.get(meta.organism_sci, "gene_id")
+    meta.gene_id_type = gene_id_types().get(meta.organism_sci, "gene_id")
     meta.paired_end = row.paired_end.toBoolean()
     meta.has_ercc = row.has_ERCC.toBoolean()
-    meta.factors = row.findAll { key, value ->
+    meta.factors = row.findAll { key, _value ->
         key.startsWith("Factor Value[") && key.endsWith("]")
     }.collectEntries { key, value ->
         [(key[13..-2]): value]
@@ -72,10 +76,11 @@ def require_col(LinkedHashMap row, String col, String type) {
 
 def get_runsheet_paths(LinkedHashMap row, String type) {
     def meta = row_to_meta(row)
-    if (!RUNSHEET_COLS.containsKey(type)) {
-        throw new RuntimeException("Unknown runsheet type '${type}'. Expected one of: ${RUNSHEET_COLS.keySet()}")
+    def cols = runsheet_cols()
+    if (!cols.containsKey(type)) {
+        throw new RuntimeException("Unknown runsheet type '${type}'. Expected one of: ${cols.keySet()}")
     }
-    def spec = RUNSHEET_COLS[type]
+    def spec = cols[type]
     // meta: ISA / --counts_table_path override — sample metadata only
     if (!spec.files && !spec.table) {
         return [meta, []]
@@ -93,14 +98,14 @@ def get_runsheet_paths(LinkedHashMap row, String type) {
 }
 
 def table_path_from_row(LinkedHashMap row, String type) {
-    def spec = RUNSHEET_COLS[type]
+    def spec = runsheet_cols()[type]
     spec?.table ? require_col(row, spec.table, type) : null
 }
 
-def mutate_to_single_end(it) {
-    def new_meta = it[0].clone()
+def mutate_to_single_end(sample) {
+    def new_meta = sample[0].clone()
     new_meta.paired_end = false
-    return [new_meta, [it[1][0]]]
+    return [new_meta, [sample[1][0]]]
 }
 
 process TRUNCATE_RUNSHEET {
@@ -143,13 +148,13 @@ workflow PARSE_RUNSHEET {
             | combine(type)
 
         ch_samples = ch_rows
-            | map { row, type ->
-                def item = get_runsheet_paths(row, type)
-                (params.force_single_end && (type == 'raw' || type == 'trimmed')) ? mutate_to_single_end(item) : item
+            | map { row, parse_type ->
+                def item = get_runsheet_paths(row, parse_type)
+                (params.force_single_end && (parse_type == 'raw' || parse_type == 'trimmed')) ? mutate_to_single_end(item) : item
             }
 
         ch_samples
-            .map { meta, files -> [meta.has_ercc, meta.paired_end, meta.organism_sci] }
+            .map { meta, _files -> [meta.has_ercc, meta.paired_end, meta.organism_sci] }
             .unique()
             .count()
             .subscribe { count ->
@@ -161,7 +166,7 @@ workflow PARSE_RUNSHEET {
                 }
             }
 
-        ch_samples.take(1) | view { meta, files ->
+        ch_samples.take(1) | view { meta, _files ->
             """Autodetected Processing Metadata:
             Has ERCC: ${meta.has_ercc}
             Paired End: ${meta.paired_end}
@@ -170,7 +175,7 @@ workflow PARSE_RUNSHEET {
         }
 
         ch_samples
-            .flatMap { meta, files -> files }
+            .flatMap { _meta, files -> files }
             .collect()
             .map { all_files ->
                 if (all_files.size() == 0) {
@@ -185,8 +190,8 @@ workflow PARSE_RUNSHEET {
             }
 
         table = ch_rows
-            | map { row, type -> table_path_from_row(row, type) }
-            | filter { it != null && it != "" }
+            | map { row, parse_type -> table_path_from_row(row, parse_type) }
+            | filter { path -> path != null && path != "" }
             | unique
             | map { path -> file(path) }
 

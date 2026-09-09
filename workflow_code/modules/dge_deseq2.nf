@@ -5,18 +5,18 @@
 
 process DGE_DESEQ2 {
 
-    publishDir "${ publishdir }/04-DESeq2_NormCounts",
-        pattern: "*Counts${output_label}${params.assay_suffix}.csv",
+    publishDir path: { "${ publishdir }/04-DESeq2_NormCounts" },
+        pattern: { "*Counts${output_label}${params.assay_suffix}.csv" },
         mode: params.publish_dir_mode
 
-    publishDir "${ publishdir }/05-DESeq2_DGE",
+    publishDir path: { "${ publishdir }/05-DESeq2_DGE" },
         pattern: "{contrasts,SampleTable,differential_expression}*", 
         mode: params.publish_dir_mode
 
     input:
         val(publishdir)
         val(meta)
-        val(gene_annotations_url)
+        path(gene_annotations), optional: true
         path(runsheet_path)
         path(gene_counts)
         path("dge_deseq2.Rmd")
@@ -60,7 +60,7 @@ process DGE_DESEQ2 {
                 output_directory = '\${PWD}',
                 output_filename_label = '${output_filename_label}',
                 output_filename_suffix = '${output_filename_suffix}',
-                annotation_file_path = '${gene_annotations_url}',
+                annotation_file_path = '${gene_annotations}',
                 runsheet_path = '${runsheet_path}',
                 microbes = ${microbes},
                 gene_id_type = '${meta.gene_id_type}',

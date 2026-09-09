@@ -1,6 +1,6 @@
 process MULTIQC {
     // tag("Dataset-wide")
-    publishDir "${ publishdir }",
+    publishDir path: { "${ publishdir }" },
         pattern:  "*.{html,zip}" ,
         mode: params.publish_dir_mode
     
