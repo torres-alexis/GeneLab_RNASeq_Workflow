@@ -5,16 +5,7 @@
 
 process DGE_DESEQ2 {
 
-    publishDir path: { "${ publishdir }/04-DESeq2_NormCounts" },
-        pattern: { "*Counts${output_label}${params.assay_suffix}.csv" },
-        mode: params.publish_dir_mode
-
-    publishDir path: { "${ publishdir }/05-DESeq2_DGE" },
-        pattern: "{contrasts,SampleTable,differential_expression}*", 
-        mode: params.publish_dir_mode
-
     input:
-        val(publishdir)
         val(meta)
         path(gene_annotations)
         path(runsheet_path)
@@ -30,7 +21,6 @@ process DGE_DESEQ2 {
         path("SampleTable${params.assay_suffix}.csv"),                                   emit: sample_table, optional: true
         path("differential_expression${output_label}${params.assay_suffix}.csv"),        emit: dge_table
         path("VST_Counts${output_label}${params.assay_suffix}.csv"),                     emit: vst_norm_counts
-        path("summary.txt"),                                                             emit: summary
         path("versions2.txt"),                                                           emit: versions
 
     script:

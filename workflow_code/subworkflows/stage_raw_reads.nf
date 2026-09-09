@@ -8,7 +8,6 @@ def is_remote_uri(p) {
 
 workflow STAGE_READS {
     take:
-        ch_outdir
         ch_samples
         type
 
@@ -27,7 +26,7 @@ workflow STAGE_READS {
             meta.paired_end ? [meta, [files[0], files[1]]] : [meta, [files[0]]]
         }
 
-        COPY_READS( ch_outdir, ch_remote.mix(ch_local), type )
+        COPY_READS( ch_remote.mix(ch_local), type )
 
         COPY_READS.out.reads | map { sample -> sample[1] } | collect | set { ch_all_reads }
         COPY_READS.out.reads | map { sample -> sample[0].id }

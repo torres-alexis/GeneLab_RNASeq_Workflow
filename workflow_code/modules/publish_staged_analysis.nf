@@ -1,16 +1,11 @@
 process PUBLISH_STAGED_ANALYSIS {
-    publishDir path: { "${ch_outdir}" },
-        pattern: '{00-RawData/**,01-TG_Preproc/**,02-Bowtie2_Alignment/**,02-STAR_Alignment/**,03-FeatureCounts/**,03-RSEM_Counts/**,05-DESeq2_DGE/**,Metadata/**}',
-        mode: params.publish_dir_mode
-
     input:
-        val(ch_outdir)
         path(runsheet)
         path(staged)
         val(entry_point)
 
     output:
-        path("Metadata/*"), emit: metadata
+        path("Metadata"), emit: metadata_dir
 
     script:
         def suf = params.assay_suffix

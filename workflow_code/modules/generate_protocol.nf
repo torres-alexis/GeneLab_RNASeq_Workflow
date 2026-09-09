@@ -1,10 +1,5 @@
 process GENERATE_PROTOCOL {
-    publishDir path: { "${ch_outdir}/GeneLab" },
-        mode: params.publish_dir_mode,
-        pattern: "*.txt"
-
     input:
-        val(ch_outdir)
         val(ch_meta)
         val(strandedness)
         path(software_versions_yaml)
@@ -14,7 +9,7 @@ process GENERATE_PROTOCOL {
         path(runsheet)
 
     output:
-        path("protocol${params.assay_suffix}.txt")
+        path("protocol${params.assay_suffix}.txt"), emit: protocol
 
     script:
         def mode = params.mode == 'microbes' ? '--mode microbes' : ''

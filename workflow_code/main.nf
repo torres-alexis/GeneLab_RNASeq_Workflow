@@ -36,27 +36,45 @@ Workflow Version: ${workflow.manifest.version}
     }
 }
 
+def as_list(x) {
+    if ( x == null ) return []
+    if ( x instanceof Collection && !(x instanceof CharSequence) ) return x as List
+    return [x]
+}
+
 workflow {
-    if (params.stage_only && params.post_processing) {
-        error "Specify only one of --stage_only or --post_processing"
-    }
-    if (params.stage_only) {
-        STAGE_ONLY()
-    } else if (params.post_processing) {
-        POST_PROCESSING()
-    } else {
-        print_banner()
-        RNASEQ(
-            params.outdir ? channel.fromPath(params.outdir, checkIfExists: true) : null,
-            channel.value(dp_tools_plugin()),
-            channel.value(params.reference_table),
-            params.accession ? channel.value(params.accession) : null,
-            params.isa_archive_path ? channel.fromPath(params.isa_archive_path) : null,
-            params.runsheet_path ? channel.fromPath(params.runsheet_path) : null,
-            channel.value(params.api_url),
-            channel.value(params.reference_store_path),
-            channel.value(params.derived_store_path)
-        )
+    main:
+        if (params.stage_only && params.post_processing) {
+            error "Specify only one of --stage_only or --post_processing"
+        }
+        if (params.stage_only) {
+            STAGE_ONLY()
+            ch_pub = STAGE_ONLY.out.published
+        } else if (params.post_processing) {
+            POST_PROCESSING()
+            ch_pub = POST_PROCESSING.out.published
+        } else {
+            print_banner()
+            RNASEQ(
+                params.outdir ? channel.fromPath(params.outdir, checkIfExists: true) : null,
+                channel.value(dp_tools_plugin()),
+                channel.value(params.reference_table),
+                params.accession ? channel.value(params.accession) : null,
+                params.isa_archive_path ? channel.fromPath(params.isa_archive_path) : null,
+                params.runsheet_path ? channel.fromPath(params.runsheet_path) : null,
+                channel.value(params.api_url),
+                channel.value(params.reference_store_path),
+                channel.value(params.derived_store_path)
+            )
+            ch_pub = RNASEQ.out.published
+        }
+    publish:
+        published = ch_pub
+}
+
+output {
+    published {
+        path { dest, f -> f >> dest }
     }
 }
 
@@ -86,11 +104,21 @@ workflow STAGE_ONLY {
             ch_staged = STAGE.out.dge_table
         }
         PUBLISH_STAGED_ANALYSIS(
-            STAGE.out.ch_outdir,
             STAGE.out.runsheet_path,
             ch_staged.collect(),
             channel.value(ep)
         )
+        ch_root = params.accession ? STAGE.out.glds_accession : channel.value('results')
+        ch_pub = STAGE.out.published
+        if ( params.runsheet_path ) {
+            ch_pub = ch_pub.mix(
+                PUBLISH_STAGED_ANALYSIS.out.metadata_dir.combine(ch_root).map { d, root ->
+                    ["${root}/Metadata".toString(), d]
+                }
+            )
+        }
+    emit:
+        published = ch_pub
 }
 
 workflow POST_PROCESSING {
@@ -99,4 +127,14 @@ workflow POST_PROCESSING {
         ch_processed_directory = channel.fromPath("${params.outdir}/${params.accession}", checkIfExists: true)
         UPDATE_ASSAY_TABLE(ch_processed_directory)
         GENERATE_MD5SUMS(ch_processed_directory)
+        def root = params.accession
+        ch_pub = UPDATE_ASSAY_TABLE.out.assay_table.flatMap { f ->
+            as_list(f).collect { x -> ["${root}/GeneLab/updated_curation_tables/${x.name}".toString(), x] }
+        }.mix(
+            GENERATE_MD5SUMS.out.raw_md5sum.map { f -> ["${root}/GeneLab/${f.name}".toString(), f] }
+        ).mix(
+            GENERATE_MD5SUMS.out.processed_md5sum.map { f -> ["${root}/GeneLab/${f.name}".toString(), f] }
+        )
+    emit:
+        published = ch_pub
 }

@@ -1,14 +1,5 @@
 process ERCC_ANALYSIS {
-    publishDir path: { "${publishdir}" },
-        mode: params.publish_dir_mode,
-        pattern: "{combined_ercc_analysis${params.assay_suffix}.ipynb,ERCC_analysis${params.assay_suffix}.html,ERCC_analysis_error${params.assay_suffix}.txt}"
-
-    publishDir path: { "${publishdir}" },
-        mode: params.publish_dir_mode,
-        pattern: "ERCC_analysis"
-
     input:
-        val(publishdir)
         val(has_ercc)
         val(accession)
         path(isa_zip)
@@ -18,8 +9,6 @@ process ERCC_ANALYSIS {
         path("combined_ercc_analysis.ipynb")
 
     output:
-        path("ercc_kernels.log")
-        path("ercc_inputs.txt")
         path("combined_ercc_analysis${params.assay_suffix}.ipynb"), optional: true, emit: notebook
         path("ERCC_analysis${params.assay_suffix}.html"), optional: true, emit: html
         path("ERCC_analysis"), optional: true, emit: tables

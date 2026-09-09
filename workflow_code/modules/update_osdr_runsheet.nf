@@ -1,12 +1,7 @@
 process UPDATE_OSDR_RUNSHEET {
     tag "${glds_accession}_${entry_point}"
 
-    publishDir path: { "${publishdir}/Metadata" },
-        mode: params.publish_dir_mode,
-        saveAs: { _filename -> runsheet.name }
-
     input:
-        val(publishdir)
         path(runsheet)
         path(file_list)
         val(glds_accession)
