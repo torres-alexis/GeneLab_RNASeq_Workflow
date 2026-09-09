@@ -373,6 +373,10 @@ Defaults:
   
   * `--dge_filter_count_per_sample_threshold` - Multiplier for sample-scaled count threshold (type: number, default: 1)
 
+  * `--drop_unalignable` - Exclude samples from DGE when RSEM `pct_unalignable` is at or above `--unalignable_threshold` (type: boolean, default: true). Default mode only; no-op for microbes and for `counts_table` / `genes_results` / `dge_table`.
+
+  * `--unalignable_threshold` - Percent unalignable at or above which a sample is dropped from DGE (type: number, default: 60)
+
 <br>
 
 **Additional Optional Parameters:**

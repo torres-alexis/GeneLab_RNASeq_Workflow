@@ -281,6 +281,18 @@
           "default": 1,
           "description": "Multiplier for sample-scaled threshold",
           "minimum": 0
+        },
+        "drop_unalignable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Exclude samples from DGE when RSEM pct_unalignable is at or above --unalignable_threshold. Default mode only (raw_reads / trimmed_reads / bam_files)."
+        },
+        "unalignable_threshold": {
+          "type": "number",
+          "default": 60,
+          "description": "Drop samples with RSEM pct_unalignable at or above this percent",
+          "minimum": 0,
+          "maximum": 100
         }
       }
     },

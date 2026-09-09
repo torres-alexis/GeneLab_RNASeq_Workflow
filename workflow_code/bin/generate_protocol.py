@@ -5,12 +5,56 @@ It reads software versions from a YAML file and incorporates other parameters.
 """
 
 import argparse
+import csv
 import yaml
 import os
 import sys
 from datetime import datetime
 import pandas as pd
-import re
+
+def jira_italic(text):
+    text = (text or "").strip()
+    if not text:
+        return ""
+    return f"_{text}_ "
+
+def _name_list(names):
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return f"{', '.join(names[:-1])}, and {names[-1]}"
+
+def drop_unalignable_names(qc_path, threshold, assay_suffix=""):
+    if not qc_path or os.path.basename(qc_path) == "NO_FILE" or not os.path.exists(qc_path):
+        return []
+    with open(qc_path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    if not rows or "pct_unalignable" not in rows[0]:
+        return []
+    names = []
+    for r in rows:
+        try:
+            pct = float(r.get("pct_unalignable") or "")
+        except ValueError:
+            continue
+        if pct < threshold:
+            continue
+        name = (r.get("sample") or "").strip()
+        if assay_suffix and name.endswith(assay_suffix):
+            name = name[: -len(assay_suffix)]
+        if name:
+            names.append(name)
+    return names
+
+def unalignable_protocol_sentence(names, threshold):
+    if not names:
+        return ""
+    return jira_italic(
+        f"Note that since greater than {threshold:g}% of the reads in samples {_name_list(names)} were "
+        f"classified as unalignable to the transcriptome by RSEM, they were excluded "
+        f"from count normalization and differential expression analysis."
+    )
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Generate protocol file for GeneLab RNA-seq pipeline')
@@ -42,6 +86,12 @@ def parse_args():
                         help='Path to the reference genome GTF file')
     parser.add_argument('--runsheet', required=False,
                         help='Path to the runsheet CSV file')
+    parser.add_argument('--qc_metrics', default='',
+                        help='qc_metrics CSV (pct_unalignable column)')
+    parser.add_argument('--drop_unalignable', default='true',
+                        help='Whether unalignable samples were excluded from DGE')
+    parser.add_argument('--unalignable_threshold', default='60',
+                        help='pct_unalignable cutoff used for DGE exclusion')
     return parser.parse_args()
 
 def read_software_versions(yaml_file):
@@ -84,12 +134,14 @@ def generate_protocol_content(args, software_versions):
     # Add reference description based on mode, reference source, and ERCC status
     reference_description = ""
     
-    # Format organism name if provided - replace underscores with spaces and title case
     organism_name = ""
-    organism_name_italics = ""  # For use in text (with underscores for Jira)
+    organism_name_italics = ""
     if hasattr(args, 'organism') and args.organism:
-        organism_name = args.organism.replace('_', ' ').title()
-        organism_name_italics = f"_{organism_name}_"  # Surrounded by underscores for Jira italics
+        parts = args.organism.replace('_', ' ').split()
+        organism_name = parts[0].capitalize() + (
+            " " + " ".join(w.lower() for w in parts[1:]) if parts[1:] else ""
+        )
+        organism_name_italics = f"_{organism_name}_"
     
     # Get reference FASTA and GTF basenames
     ref_fasta_name = ""
@@ -323,12 +375,18 @@ def generate_protocol_content(args, software_versions):
             tech_rep_sentence = ""
     # If no runsheet, leave tech_rep_sentence as empty
     
+    if str(args.drop_unalignable).lower() == "true":
+        threshold = float(args.unalignable_threshold)
+        description += unalignable_protocol_sentence(
+            drop_unalignable_names(args.qc_metrics, threshold, args.assay_suffix),
+            threshold,
+        )
+
     # Add normalization and differential expression analysis sentence
     description += "Normalized gene counts were subject to differential expression analysis. "
     
-    # Add tech rep sentence
     if tech_rep_sentence:
-        description += tech_rep_sentence
+        description += jira_italic(tech_rep_sentence)
         
     # Add differential expression analysis sentence
     description += f"Differential expression analysis was performed in R (version {r_version}) using DESeq2 (version {deseq2_version}); all groups were compared pairwise using the Wald test and the likelihood ratio test was used to generate the F statistic p-value. "
