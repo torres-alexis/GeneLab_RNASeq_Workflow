@@ -656,6 +656,12 @@ def main():
         
         # Report outliers in featureCounts metrics
         report_multiqc_outliers(args.outdir, multiqc_data, vv_log_path)
+        rates = {str(s): float(d["pct_assigned"]) for s, d in multiqc_data.items()}
+        details = "; ".join(f"{s}={p:.1f}" for s, p in sorted(rates.items()))
+        low = "; ".join(f"{s}={p:.1f}" for s, p in sorted(rates.items()) if p < 50)
+        status, message = ("RED", f"assigned <50%: {low}") if low else ("GREEN", "All assigned ≥50%")
+        print(message)
+        log_check_result(vv_log_path, "featurecounts", "all", "check_rate_lt_50", status, message, details)
     
     # Remove rRNA check since the file is no longer provided in the pipeline
     # check_rrna_removal(args.outdir, vv_log_path, args.assay_suffix)

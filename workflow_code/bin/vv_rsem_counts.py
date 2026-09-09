@@ -941,6 +941,12 @@ def main():
         
         # Report outliers in RSEM metrics
         report_rsem_outliers(args.outdir, rsem_data, vv_log_path)
+        rates = {str(s): float(d["pct_uniquely_aligned"]) for s, d in rsem_data.items()}
+        details = "; ".join(f"{s}={p:.1f}" for s, p in sorted(rates.items()))
+        low = "; ".join(f"{s}={p:.1f}" for s, p in sorted(rates.items()) if p < 50)
+        status, message = ("RED", f"rsem_unique <50%: {low}") if low else ("GREEN", "All rsem_unique ≥50%")
+        print(message)
+        log_check_result(vv_log_path, "RSEM_counts", "all", "check_rate_lt_50", status, message, details)
     
     print("RSEM counts validation complete")
 
