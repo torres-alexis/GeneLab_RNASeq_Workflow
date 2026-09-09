@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `-entry STAGE_ONLY` / `-entry POST_PROCESSING` with `--stage_only` / `--post_processing`.
 - `--strandedness` defaults to `auto` (RSeQC infer_experiment). `none`/`forward`/`reverse` overrides. Required, no `auto` for `--entry_point bam_files`.
 - Declare explicit closure parameters (strict-parser `it` warning).
+- Fetch remote runsheet FASTQ/BAM/genes.results (`://`) in module processes. Local paths still use `file()` + `path`.
+- Keep `truncate_to` first-N FASTQ behavior (`splitFastq(limit: N)`), but run it in module processes instead of the head node.
+- Updated `dp_tools` quay image tag from `1.3.8` to `1.3.8-slim`. Added `wget`, `awscli`, `unzip`, `procps`.
+- Fail early if the organism is not in the annotations table and `--reference_fasta` / `--reference_gtf` were not passed.
 
 ## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.1.0) - 2025-12-09
 
