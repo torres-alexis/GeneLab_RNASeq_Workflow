@@ -330,6 +330,38 @@ def r_style_make_names(s: str) -> str:
     return "".join(new_string_chars)
 
 
+def organism_part_label(value: str) -> str:
+    return str(value).strip().replace(" ", "_")
+
+
+def dge_file_suffix(assay_suffix, stratum=""):
+    if stratum:
+        return f"_{stratum}{assay_suffix}"
+    return assay_suffix
+
+
+def factor_value_columns(df):
+    return [c for c in df.columns if str(c).startswith("Factor Value[") and str(c).endswith("]")]
+
+
+def grouping_factor_columns(df, stratum_factor=""):
+    cols = factor_value_columns(df)
+    if not stratum_factor:
+        return cols
+    drop = f"Factor Value[{stratum_factor}]"
+    return [c for c in cols if c != drop]
+
+
+def filter_runsheet_to_stratum(df, stratum_factor="", stratum_value=""):
+    if not stratum_factor or not stratum_value:
+        return df
+    factor_col = f"Factor Value[{stratum_factor}]"
+    if factor_col not in df.columns:
+        return df.iloc[0:0]
+    want = organism_part_label(str(stratum_value).replace("_rRNArm", ""))
+    return df[df[factor_col].apply(lambda x: organism_part_label(x) == want)]
+
+
 class GroupFormatting(enum.Enum):
     r_make_names = enum.auto()
     ampersand_join = enum.auto()
@@ -431,27 +463,15 @@ def check_sample_table_against_runsheet(outdir, runsheet_path, log_path, assay_s
         # Convert all column names to strings to handle numeric columns
         df_rs.columns = df_rs.columns.astype(str)
         
-        # Filter runsheet by stratum if needed
         if stratum_factor and stratum_value:
-            factor_col = f"Factor Value[{stratum_factor}]"
-            if factor_col in df_rs.columns:
-                # Remove "_rRNArm" suffix if present for filtering
-                filter_value = stratum_value.replace("_rRNArm", "")
-                
-                # Filter samples that match this stratum value
-                df_rs = df_rs[df_rs[factor_col].apply(
-                    lambda x: r_style_make_names(str(x)) == filter_value
-                )]
-                
-                print(f"Filtered runsheet to {len(df_rs)} samples for {stratum_factor}={filter_value}")
-                
-                if len(df_rs) == 0:
-                    print(f"WARNING: No samples found in runsheet for {stratum_factor}={filter_value}")
-                    log_check_result(log_path, component_name, "all", check_name, "RED", 
-                                   f"No samples found in runsheet for stratum", 
-                                   f"Stratum: {stratum_factor}={filter_value}")
-                    return False
-        
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
+            if df_rs.empty:
+                print(f"WARNING: No samples found in runsheet for {stratum_factor}={stratum_value}")
+                log_check_result(log_path, component_name, "all", check_name, "RED",
+                               "No samples found in runsheet for stratum",
+                               f"Stratum: {stratum_factor}={stratum_value}")
+                return False
+
         # Ensure Sample Name column is treated as string
         df_rs['Sample Name'] = df_rs['Sample Name'].astype(str)
         
@@ -544,43 +564,23 @@ def check_sample_table_for_correct_group_assignments(outdir, runsheet_path, log_
         # Ensure Sample Name is string
         df_rs['Sample Name'] = df_rs['Sample Name'].astype(str)
         
-        # Filter runsheet by stratum if needed
         if stratum_factor and stratum_value:
-            factor_col = f"Factor Value[{stratum_factor}]"
-            if factor_col in df_rs.columns:
-                # Remove "_rRNArm" suffix if present for filtering
-                filter_value = stratum_value.replace("_rRNArm", "")
-                
-                # Filter samples that match this stratum value
-                df_rs = df_rs[df_rs[factor_col].apply(
-                    lambda x: r_style_make_names(str(x)) == filter_value
-                )]
-                
-                print(f"Filtered runsheet to {len(df_rs)} samples for {stratum_factor}={filter_value}")
-                
-                if len(df_rs) == 0:
-                    print(f"WARNING: No samples found in runsheet for {stratum_factor}={filter_value}")
-                    log_check_result(log_path, component_name, "all", check_name, "RED", 
-                                   f"No samples found in runsheet for stratum", 
-                                   f"Stratum: {stratum_factor}={filter_value}")
-                    return False
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
+            if df_rs.empty:
+                print(f"WARNING: No samples found in runsheet for {stratum_factor}={stratum_value}")
+                log_check_result(log_path, component_name, "all", check_name, "RED",
+                               "No samples found in runsheet for stratum",
+                               f"Stratum: {stratum_factor}={stratum_value}")
+                return False
+
+        # Filter only Factor Value columns (organism part is a split, not a group)
+        factor_cols = grouping_factor_columns(df_rs, stratum_factor)
         
-        # Filter only Factor Value columns
-        factor_cols = [col for col in df_rs.columns if col.startswith("Factor Value[")]
-        
-        if not factor_cols:
+        if not factor_value_columns(df_rs):
             print("WARNING: No Factor Value columns found in runsheet")
             log_check_result(log_path, component_name, "all", check_name, "RED", 
                             "No Factor Value columns found in runsheet", "")
             return False
-        
-        # Filter out the stratification factor if we're using it
-        if stratum_factor and stratum_value:
-            strat_factor_col = f"Factor Value[{stratum_factor}]"
-            if strat_factor_col in factor_cols:
-                # Remove the stratification factor from consideration
-                factor_cols = [col for col in factor_cols if col != strat_factor_col]
-                print(f"Excluding stratification factor '{stratum_factor}' from condition calculation")
         
         # If we've excluded all factors, add a warning
         if not factor_cols:
@@ -650,6 +650,24 @@ def check_sample_table_for_correct_group_assignments(outdir, runsheet_path, log_
                         f"Error checking group assignments", f"Error: {str(e)}")
         return False
 
+def _part_outputs_present(outdir, safe_val):
+    markers = (
+        f"Normalized_Counts_{safe_val}",
+        f"differential_expression_{safe_val}",
+        f"SampleTable_{safe_val}",
+    )
+    for d in (
+        os.path.join(outdir, "04-DESeq2_NormCounts"),
+        os.path.join(outdir, "05-DESeq2_DGE"),
+    ):
+        if not os.path.isdir(d):
+            continue
+        for fn in os.listdir(d):
+            if any(fn.startswith(m) for m in markers):
+                return True
+    return False
+
+
 def detect_stratification_factors(outdir, runsheet_path):
     """Auto-detect if the analysis is stratified based on directory structure.
     
@@ -671,16 +689,13 @@ def detect_stratification_factors(outdir, runsheet_path):
         factor_name = col.replace("Factor Value[", "").replace("]", "")
         unique_values = df[col].unique()
         
-        # Check if directories exist for each unique value
         for val in unique_values:
-            safe_val = r_style_make_names(str(val))
-            norm_dir = os.path.join(outdir, f"04-DESeq2_NormCounts_{safe_val}")
-            dge_dir = os.path.join(outdir, f"05-DESeq2_DGE_{safe_val}")
-            
-            if os.path.exists(norm_dir) or os.path.exists(dge_dir):
-                if factor_name not in potential_factors:
-                    potential_factors[factor_name] = []
-                potential_factors[factor_name].append(safe_val)
+            safe_val = organism_part_label(str(val))
+            if not _part_outputs_present(outdir, safe_val):
+                continue
+            if factor_name not in potential_factors:
+                potential_factors[factor_name] = []
+            potential_factors[factor_name].append(safe_val)
     
     # Return the factor with the most matching directories
     if potential_factors:
@@ -721,38 +736,19 @@ def get_factor_stratified_paths(outdir, runsheet_path, target_factor=""):
         return {"": {"norm_counts": os.path.join(outdir, "04-DESeq2_NormCounts"),
                      "dge": os.path.join(outdir, "05-DESeq2_DGE")}}
     
-    # Get unique values for the factor
-    factor_values = df[factor_col].unique()
-    result = {}
-    
-    # Create path mappings for each factor value
-    for value in factor_values:
-        safe_value = r_style_make_names(str(value))
-        result[safe_value] = {
-            "norm_counts": os.path.join(outdir, f"04-DESeq2_NormCounts_{safe_value}"),
-            "dge": os.path.join(outdir, f"05-DESeq2_DGE_{safe_value}")
-        }
-        
-        # Also check for rRNA removed paths if they exist
-        rrna_norm_path = os.path.join(outdir, f"04-DESeq2_NormCounts_{safe_value}_rRNArm")
-        rrna_dge_path = os.path.join(outdir, f"05-DESeq2_DGE_{safe_value}_rRNArm")
-        
-        if os.path.exists(rrna_norm_path) or os.path.exists(rrna_dge_path):
-            result[f"{safe_value}_rRNArm"] = {
-                "norm_counts": rrna_norm_path,
-                "dge": rrna_dge_path
-            }
-    
-    # Always include standard paths as fallback
     std_norm_path = os.path.join(outdir, "04-DESeq2_NormCounts")
     std_dge_path = os.path.join(outdir, "05-DESeq2_DGE")
-    
-    if os.path.exists(std_norm_path) or os.path.exists(std_dge_path):
-        result[""] = {
-            "norm_counts": std_norm_path,
-            "dge": std_dge_path
-        }
-        
+    result = {}
+
+    for value in df[factor_col].unique():
+        if not str(value).strip():
+            continue
+        safe_value = organism_part_label(str(value))
+        result[safe_value] = {"norm_counts": std_norm_path, "dge": std_dge_path}
+        rrna = f"{safe_value}_rRNArm"
+        if _part_outputs_present(outdir, rrna):
+            result[rrna] = {"norm_counts": std_norm_path, "dge": std_dge_path}
+
     return result
 
 def print_summary(check_results, vv_log_path, overall_status="GREEN"):
@@ -893,7 +889,7 @@ def check_contrasts_table_headers(outdir, runsheet_path, log_path, assay_suffix=
         component_name = component
     
     # Look for contrasts table with the correct filename pattern
-    contrasts_table_path = os.path.join(outdir, f"contrasts{check_suffix}{assay_suffix}.csv")
+    contrasts_table_path = os.path.join(outdir, f"contrasts{assay_suffix}.csv")
     
     # Check if contrasts table exists
     if not os.path.exists(contrasts_table_path):
@@ -908,12 +904,8 @@ def check_contrasts_table_headers(outdir, runsheet_path, log_path, assay_suffix=
         # Convert all column names to strings to handle numeric columns
         df_rs.columns = df_rs.columns.astype(str)
             
-        df_rs_factor_cols = df_rs[[col for col in df_rs.columns if col.startswith("Factor Value[")]]
-        
-        # Convert all factor values to strings to handle None/NaN values
-        factor_col_names = [col for col in df_rs.columns if col.startswith("Factor Value[")]
+        factor_col_names = factor_value_columns(df_rs)
         df_rs = safe_str_conversion(df_rs, factor_col_names)
-        df_rs_factor_cols = safe_str_conversion(df_rs_factor_cols, factor_col_names)
         
         # Filter runsheet by stratum if needed
         if stratum_factor and stratum_value:
@@ -923,8 +915,7 @@ def check_contrasts_table_headers(outdir, runsheet_path, log_path, assay_suffix=
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
-            df_rs_factor_cols = df_rs_factor_cols[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -933,9 +924,8 @@ def check_contrasts_table_headers(outdir, runsheet_path, log_path, assay_suffix=
                             f"Stratum factor: {stratum_factor}, Stratum value: {stratum_value}")
             return False
         
-        # Get unique groups using the same formatting as dp_tools (ampersand_join)
-        # First, get all unique combinations of factor values
-        unique_factor_combinations = df_rs_factor_cols.drop_duplicates()
+        group_cols = grouping_factor_columns(df_rs, stratum_factor)
+        unique_factor_combinations = df_rs[group_cols].drop_duplicates()
         
         # Format each combination like dp_tools does
         formatted_groups = []
@@ -1011,7 +1001,7 @@ def check_contrasts_table_rows(outdir, log_path, assay_suffix="_GLbulkRNAseq",
         component_name = component
     
     # Look for contrasts table with the correct filename pattern
-    contrasts_table_path = os.path.join(outdir, f"contrasts{check_suffix}{assay_suffix}.csv")
+    contrasts_table_path = os.path.join(outdir, f"contrasts{assay_suffix}.csv")
     
     # Check if contrasts table exists
     if not os.path.exists(contrasts_table_path):
@@ -1162,7 +1152,7 @@ def check_dge_table_annotation_columns_exist(outdir, runsheet_path, log_path, as
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -1182,7 +1172,7 @@ def check_dge_table_annotation_columns_exist(outdir, runsheet_path, log_path, as
         return False
     
     # Get DGE table paths with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -1296,7 +1286,7 @@ def check_dge_table_sample_columns_exist(outdir, runsheet_path, log_path, assay_
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -1315,7 +1305,7 @@ def check_dge_table_sample_columns_exist(outdir, runsheet_path, log_path, assay_
         return False
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -1417,7 +1407,7 @@ def check_dge_table_sample_columns_constraints(outdir, runsheet_path, log_path, 
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -1436,7 +1426,7 @@ def check_dge_table_sample_columns_constraints(outdir, runsheet_path, log_path, 
         return False
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -1535,7 +1525,7 @@ def check_dge_table_group_columns_exist(outdir, runsheet_path, log_path, assay_s
         component_name = component
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -1558,7 +1548,7 @@ def check_dge_table_group_columns_exist(outdir, runsheet_path, log_path, assay_s
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -1567,8 +1557,8 @@ def check_dge_table_group_columns_exist(outdir, runsheet_path, log_path, assay_s
                             f"Stratum factor: {stratum_factor}, Stratum value: {stratum_value}")
             return False
         
-        # Extract factor value columns from runsheet
-        factor_cols = [col for col in df_rs.columns if col.startswith("Factor Value[")]
+        # Extract factor value columns from runsheet (exclude split factor)
+        factor_cols = grouping_factor_columns(df_rs, stratum_factor)
         
         expected_ids = expected_dge_sample_ids_from_runsheet(df_rs)
         groups = {}
@@ -1662,7 +1652,7 @@ def check_dge_table_group_columns_constraints(outdir, runsheet_path, log_path, a
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -1683,7 +1673,7 @@ def check_dge_table_group_columns_constraints(outdir, runsheet_path, log_path, a
     # Get group information
     try:
         # Read sample table to get group assignments
-        sample_table_path = os.path.join(outdir, f"SampleTable{check_suffix}{assay_suffix}.csv") 
+        sample_table_path = os.path.join(outdir, f"SampleTable{assay_suffix}.csv") 
         
         if not os.path.exists(sample_table_path):
             log_check_result(log_path, component_name, "all", check_name, "HALT", 
@@ -1709,7 +1699,7 @@ def check_dge_table_group_columns_constraints(outdir, runsheet_path, log_path, a
         return False
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -1834,7 +1824,7 @@ def check_dge_table_comparison_statistical_columns_exist(outdir, runsheet_path, 
         component_name = component
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -1857,7 +1847,7 @@ def check_dge_table_comparison_statistical_columns_exist(outdir, runsheet_path, 
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -1866,8 +1856,8 @@ def check_dge_table_comparison_statistical_columns_exist(outdir, runsheet_path, 
                             f"Stratum factor: {stratum_factor}, Stratum value: {stratum_value}")
             return False
         
-        # Extract factor value columns from runsheet
-        factor_cols = [col for col in df_rs.columns if col.startswith("Factor Value[")]
+        # Extract factor value columns from runsheet (exclude split factor)
+        factor_cols = grouping_factor_columns(df_rs, stratum_factor)
         
         # Group samples by their factor combinations
         groups = {}
@@ -2033,7 +2023,7 @@ def check_dge_table_group_statistical_columns_constraints(outdir, runsheet_path,
         component_name = component
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -2056,7 +2046,7 @@ def check_dge_table_group_statistical_columns_constraints(outdir, runsheet_path,
                                 f"Stratification factor column not found in runsheet", 
                                 f"Expected column: {factor_col}")
                 return False
-            df_rs = df_rs[df_rs[factor_col] == stratum_value]
+            df_rs = filter_runsheet_to_stratum(df_rs, stratum_factor, stratum_value)
         
         # Check if we have any samples after filtering
         if df_rs.empty:
@@ -2065,8 +2055,8 @@ def check_dge_table_group_statistical_columns_constraints(outdir, runsheet_path,
                             f"Stratum factor: {stratum_factor}, Stratum value: {stratum_value}")
             return False
         
-        # Extract factor value columns from runsheet
-        factor_cols = [col for col in df_rs.columns if col.startswith("Factor Value[")]
+        # Extract factor value columns from runsheet (exclude split factor)
+        factor_cols = grouping_factor_columns(df_rs, stratum_factor)
         
         # Group samples by their factor combinations
         groups = {}
@@ -2174,7 +2164,7 @@ def check_dge_table_fixed_statistical_columns_exist(outdir, log_path, assay_suff
         component_name = component
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -2240,7 +2230,7 @@ def check_dge_table_fixed_statistical_columns_constraints(outdir, log_path, assa
         component_name = component
     
     # Get DGE table path with the correct pattern
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     
     # Check if the DGE table exists
     if not os.path.exists(dge_table_path):
@@ -2327,7 +2317,7 @@ def check_dge_table_log2fc_within_reason(outdir, runsheet_path, log_path, assay_
         check_suffix = ""
         component_name = component
 
-    dge_table_path = os.path.join(outdir, f"differential_expression{check_suffix}{assay_suffix}.csv")
+    dge_table_path = os.path.join(outdir, f"differential_expression{assay_suffix}.csv")
     if not os.path.exists(dge_table_path):
         message = f"DGE table not found"
         log_check_result(log_path, component_name, "all", check_name, "HALT", 
@@ -2567,7 +2557,7 @@ def main():
     parser.add_argument("--outdir", required=True, help="Path to the output directory")
     parser.add_argument("--runsheet", required=True, help="Path to the runsheet CSV file")
     parser.add_argument("--assay_suffix", default="", help="Assay suffix (default: empty)")
-    parser.add_argument("--stratify_by", default="", help="Factor to stratify analysis by (e.g., 'Plant Part')")
+    parser.add_argument("--stratify_by", default="", help="Factor that splits DGE (e.g. 'organism part')")
     parser.add_argument("--mode", default="default", choices=["default", "microbes"], 
                        help="Processing mode: 'default' for RSEM or 'microbes' for FeatureCounts")
     args = parser.parse_args()
@@ -2587,7 +2577,7 @@ def main():
         print(f"\n{'=' * 50}")
         if stratum:
             print(f"Running checks for stratum: {stratum}")
-            final_suffix = f"{args.assay_suffix}_{stratum}"
+            final_suffix = dge_file_suffix(args.assay_suffix, stratum)
             
             # Extract factor name and value from stratum
             factor_name = args.stratify_by

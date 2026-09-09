@@ -225,7 +225,7 @@ if (params$DEBUG_MODE_ADD_DUMMY_COUNTS) {
             nrow=NROW(txi.rsem$counts)
         )
     }
-    print(sprintf("DEBUG: %s: Replacing original counts with random values from 0 to 5000", Sys.time()))
+    print(sprintf("DEBUG: %s: Adding random values from 0 to 5000 to original counts", Sys.time()))
 }
 
 # Save a copy of the original counts before any filtering
