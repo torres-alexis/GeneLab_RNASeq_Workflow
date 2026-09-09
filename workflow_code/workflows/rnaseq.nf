@@ -42,6 +42,7 @@ include { REMOVE_RRNA_COUNTS_TABLE as REMOVE_RRNA_RSEM_TABLE } from '../modules/
 include { REMOVE_RRNA_COUNTS_TABLE as REMOVE_RRNA_FC_TABLE } from '../modules/remove_rrna_counts_table.nf'
 include { DGE_DESEQ2 } from '../modules/dge_deseq2.nf'
 include { DGE_DESEQ2 as DGE_DESEQ2_RRNA_RM } from '../modules/dge_deseq2.nf'
+include { SPLIT_ORGANISM_PART_RUNSHEETS } from '../modules/split_organism_part_runsheets.nf'
 include { ANNOTATE_DGE_TABLE } from '../modules/annotate_dge_table.nf'
 
 include { MULTIQC as RAW_READS_MULTIQC } from '../modules/multiqc.nf'
@@ -114,6 +115,28 @@ def pub_by_meta(ch, root, dir) {
         def r = items[-2]
         def meta = items[0]
         files_only(items[1..-3]).collect { f -> dest_file(r, "${d}/${meta.id}", f) }
+    }
+}
+
+def dge_jobs_from_manifest(manifest, runsheets) {
+    return manifest.splitCsv(header: true, sep: '\t')
+        .map { row -> [row.filename, row.output_label ?: ""] }
+        .join(runsheets.flatten().map { f -> [f.name, f] })
+        .map { row ->
+            def items = as_list(row)
+            [items[1], items[2]]
+        }
+}
+
+def dge_input(jobs, meta, annot, counts, rrna) {
+    return jobs.combine(meta).combine(annot).combine(counts).map { row ->
+        def items = as_list(row)
+        def lab = (items[0] ?: "").toString()
+        def rs = items[1]
+        def m = items[2]
+        def a = items[3]
+        def c = items.size() > 5 ? items[4..-1] : items[4]
+        [m, a, rrna ? "${lab}_rRNArm".toString() : lab, rs, c]
     }
 }
 
@@ -526,6 +549,7 @@ workflow RNASEQ {
             gtf_features = GET_GTF_FEATURES.out.gtf_features.map { f -> f.text.trim() }
             FEATURECOUNTS( ch_meta, genome_references, gtf_features, strandedness, bam_list )
             QUANTIFY_FEATURECOUNTS_GENES( samples_txt, FEATURECOUNTS.out.counts )
+            qc_counts = QUANTIFY_FEATURECOUNTS_GENES.out.unnorm_counts
             COUNT_MULTIQC( samples_txt, FEATURECOUNTS.out.summary | collect, ch_multiqc_config, "FeatureCounts_")
 
             counts = FEATURECOUNTS.out.counts
@@ -566,28 +590,34 @@ workflow RNASEQ {
             ch_published = ch_published.mix( pub(ANNOTATE_DGE_TABLE.out.dge_table, ch_root, '05-DESeq2_DGE') )
         } else {
             EXTRACT_RRNA( organism_sci, genome_references | map { refs -> refs[1] } )
+            SPLIT_ORGANISM_PART_RUNSHEETS( runsheet_path )
+            ch_dge_jobs = dge_jobs_from_manifest(
+                SPLIT_ORGANISM_PART_RUNSHEETS.out.manifest,
+                SPLIT_ORGANISM_PART_RUNSHEETS.out.runsheets
+            )
+            dge_rmd = channel.value( file(dge_script) )
 
             if ( ep == 'counts_table' ) {
                 def counts_dir = microbes ? "/03-FeatureCounts" : "/03-RSEM_Counts"
-                DGE_DESEQ2( ch_meta, gene_annotations, runsheet_path, STAGE.out.counts_table, dge_script, "" )
+                DGE_DESEQ2( dge_input(ch_dge_jobs, ch_meta, gene_annotations, STAGE.out.counts_table, false), dge_rmd )
                 REMOVE_RRNA_COUNTS_TABLE( STAGE.out.counts_table, EXTRACT_RRNA.out.rrna_ids )
                 counts_rrnarm = REMOVE_RRNA_COUNTS_TABLE.out.counts_rrnarm
-                DGE_DESEQ2_RRNA_RM( ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
+                DGE_DESEQ2_RRNA_RM( dge_input(ch_dge_jobs, ch_meta, gene_annotations, counts_rrnarm, true), dge_rmd )
                 ch_published = ch_published.mix( pub(REMOVE_RRNA_COUNTS_TABLE.out.counts_rrnarm, ch_root, counts_dir.replaceFirst('^/', '')) )
             } else if ( microbes ) {
-                DGE_DESEQ2( ch_meta, gene_annotations, runsheet_path, counts, dge_script, "" )
+                DGE_DESEQ2( dge_input(ch_dge_jobs, ch_meta, gene_annotations, counts, false), dge_rmd )
                 REMOVE_RRNA_FEATURECOUNTS( counts, EXTRACT_RRNA.out.rrna_ids )
                 counts_rrnarm = REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm
-                DGE_DESEQ2_RRNA_RM( ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
+                DGE_DESEQ2_RRNA_RM( dge_input(ch_dge_jobs, ch_meta, gene_annotations, counts_rrnarm, true), dge_rmd )
                 REMOVE_RRNA_FC_TABLE(QUANTIFY_FEATURECOUNTS_GENES.out.unnorm_counts, EXTRACT_RRNA.out.rrna_ids)
                 ch_published = ch_published
                     .mix( pub(REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
                     .mix( pub(REMOVE_RRNA_FC_TABLE.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
             } else {
-                DGE_DESEQ2( ch_meta, gene_annotations, runsheet_path, genes_results.map { row -> row[1] } | collect, dge_script, "" )
+                DGE_DESEQ2( dge_input(ch_dge_jobs, ch_meta, gene_annotations, genes_results.map { row -> row[1] } | collect, false), dge_rmd )
                 REMOVE_RRNA( EXTRACT_RRNA.out.rrna_ids, genes_results )
                 counts_rrnarm = REMOVE_RRNA.out.genes_results_rrnarm.map { _m, f -> f } | toSortedList
-                DGE_DESEQ2_RRNA_RM( ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
+                DGE_DESEQ2_RRNA_RM( dge_input(ch_dge_jobs, ch_meta, gene_annotations, counts_rrnarm, true), dge_rmd )
                 REMOVE_RRNA_RSEM_TABLE(QUANTIFY_RSEM_GENES.out.publishables.map { unnorm, _nz -> unnorm }, EXTRACT_RRNA.out.rrna_ids)
                 ch_published = ch_published
                     .mix( pub_by_meta(REMOVE_RRNA.out.genes_results_rrnarm, ch_root, '03-RSEM_Counts') )
@@ -598,9 +628,6 @@ workflow RNASEQ {
             dge_table_rrnarm = DGE_DESEQ2_RRNA_RM.out.dge_table
             norm_counts = DGE_DESEQ2.out.norm_counts
             ch_versions = ch_versions.mix(DGE_DESEQ2.out.versions)
-            if ( microbes ) {
-                qc_counts = DGE_DESEQ2.out.norm_counts | map { row -> row[1] }
-            }
             ch_published = ch_published
                 .mix( pub_dge(DGE_DESEQ2.out, ch_root) )
                 .mix( pub_dge(DGE_DESEQ2_RRNA_RM.out, ch_root) )
@@ -713,8 +740,9 @@ workflow RNASEQ {
                 ch_outdir,
                 ch_meta,
                 runsheet_path,
-                dge_table,
-                dge_table_rrnarm
+                dge_table | collect,
+                dge_table_rrnarm | collect,
+                SPLIT_ORGANISM_PART_RUNSHEETS.out.stratify_by.map { f -> f.text.trim() }
             )
             vv_logs = vv_logs.mix(VV_DGE_DESEQ2.out.log)
             ch_versions = ch_versions.mix(VV_DGE_DESEQ2.out.versions)
