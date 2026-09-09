@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.1]
 
+### Added
+
+- Run ERCC spike-in analysis after RSEM quantification when applicable. Publishes the executed notebook, HTML, and tables under `ERCC_Analysis`.
+- ERCC notebook prints the ISA zip listing and prompts for file indices when metadata selection fails.
+
 ### Changed
 
+- Clean up ERCC notebook and fix count-axis labels.
 - Condensed the Nextflow mode and entry point subworkflows into `rnaseq.nf`.
 - Require Nextflow 26.04 or later.
 - Replace `-entry STAGE_ONLY` / `-entry POST_PROCESSING` with `--stage_only` / `--post_processing`.

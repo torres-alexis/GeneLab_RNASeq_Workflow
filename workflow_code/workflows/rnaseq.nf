@@ -5,6 +5,7 @@ include { DOWNLOAD_REFERENCES } from '../modules/download_references.nf'
 include { SUBSAMPLE_GENOME } from '../modules/subsample_genome.nf'
 include { DOWNLOAD_ERCC } from '../modules/download_ercc.nf'
 include { CONCAT_ERCC } from '../modules/concat_ercc.nf'
+include { ERCC_ANALYSIS } from '../modules/ercc_analysis.nf'
 include { GTF_TO_PRED } from '../modules/gtf_to_pred.nf'
 include { PRED_TO_BED } from '../modules/pred_to_bed.nf'
 
@@ -102,6 +103,7 @@ workflow RNASEQ {
         def ep = params.entry_point
         def microbes = params.mode == 'microbes'
         dge_script = "${projectDir}/bin/dge_deseq2.Rmd"
+        ercc_notebook = "${projectDir}/bin/combined_ercc_analysis.ipynb"
         ch_multiqc_config = params.multiqc_config ? channel.fromPath( params.multiqc_config ) : channel.fromPath("NO_FILE")
 
         println "Entry point: '${ep}' mode: '${params.mode}'"
@@ -206,6 +208,7 @@ workflow RNASEQ {
         channel.empty() | set { align_mqc_zip }
         channel.empty() | set { genes_results }
         channel.empty() | set { rsem_publishables }
+        channel.empty() | set { ercc_counts }
         channel.empty() | set { star_publishables }
         channel.empty() | set { count_mqc_data }
         channel.empty() | set { count_mqc_zip }
@@ -356,6 +359,7 @@ workflow RNASEQ {
             }
             rsem_publishables = QUANTIFY_RSEM_GENES.out.publishables
             qc_counts = QUANTIFY_RSEM_GENES.out.publishables
+            ercc_counts = QUANTIFY_RSEM_GENES.out.publishables.map { unnorm, _nz -> unnorm }
         }
 
         if ( microbes && ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
@@ -370,6 +374,23 @@ workflow RNASEQ {
             count_mqc_data = COUNT_MULTIQC.out.data
             count_mqc_zip = COUNT_MULTIQC.out.zipped_data
             ch_versions = ch_versions.mix(FEATURECOUNTS.out.versions).mix(COUNT_MULTIQC.out.versions)
+        }
+
+        if ( !microbes && ep == 'counts_table' ) {
+            ercc_counts = STAGE.out.counts_table
+        }
+
+        if ( !microbes && ep != 'dge_table' ) {
+            ERCC_ANALYSIS(
+                ch_outdir.map { dir -> dir + "/ERCC_Analysis" },
+                ch_meta.map { meta -> meta.has_ercc },
+                STAGE.out.glds_accession.ifEmpty( params.accession ?: '' ),
+                isa_archive.ifEmpty { [] },
+                channel.value( params.assay_suffix ),
+                ercc_counts,
+                ch_meta.map { meta -> meta.organism_sci },
+                ercc_notebook
+            )
         }
 
         if ( ep == 'dge_table' ) {
