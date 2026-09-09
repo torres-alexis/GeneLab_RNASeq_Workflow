@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Publish FeatureCounts `NumNonZeroGenes`.
 - Add `-profile pbspro`. PBS `ncpus`/`mem` go in `clusterOptions`; `cpus`/`memory` stay for `task.*`. Optional `--pbs_internet_queue` for fetch/download jobs.
 - Add `-profile podman`.
-- Fetch the annotations CSV, gene-annotation table, and remote `--counts_table_path` / `--dge_table_path` in worker processes.
+- Fetch remote annotation tables and references in worker processes.
 
 ### Fixed
 
