@@ -1,8 +1,8 @@
 include { STAGE } from '../subworkflows/stage.nf'
 
 include { PARSE_ANNOTATIONS_TABLE } from '../modules/parse_annotations_table.nf'
-include { FETCH_REMOTE_TABLE as FETCH_ANNOTATIONS_CSV } from '../modules/fetch_remote.nf'
-include { FETCH_REMOTE_TABLE as FETCH_GENE_ANNOTATIONS } from '../modules/fetch_remote.nf'
+include { FETCH_TABLE as FETCH_ANNOTATIONS_CSV } from '../modules/fetch_remote.nf'
+include { FETCH_TABLE as FETCH_GENE_ANNOTATIONS } from '../modules/fetch_remote.nf'
 include { DOWNLOAD_REFERENCES; COPY_REFERENCES } from '../modules/download_references.nf'
 include { SUBSAMPLE_GENOME } from '../modules/subsample_genome.nf'
 include { DOWNLOAD_ERCC } from '../modules/download_ercc.nf'

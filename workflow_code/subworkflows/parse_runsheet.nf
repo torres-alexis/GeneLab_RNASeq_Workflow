@@ -158,7 +158,7 @@ workflow PARSE_RUNSHEET {
         }
 
         ch_rows = ch_runsheet
-            | splitCsv(header: true)
+            | splitCsv(header: true, quote: '"')
             | combine(type)
 
         ch_samples = ch_rows
