@@ -54,7 +54,9 @@ include { MULTIQC as INNER_DISTANCE_MULTIQC } from '../modules/multiqc.nf'
 include { MULTIQC as READ_DISTRIBUTION_MULTIQC } from '../modules/multiqc.nf'
 
 include { PARSE_QC_METRICS } from '../modules/parse_qc_metrics.nf'
-include { VV_RAW_READS;
+include { VV_FASTQ as VV_RAW_FASTQ;
+    VV_FASTQ as VV_TRIMMED_FASTQ;
+    VV_RAW_READS;
     VV_TRIMMED_READS;
     VV_STAR_ALIGNMENT;
     VV_BOWTIE2_ALIGNMENT;
@@ -92,6 +94,17 @@ def vv_log(root, name, f) {
 
 def files_only(items) {
     return items.collectMany { x -> x instanceof Map ? [] : as_list(x) }
+}
+
+def flatten_fastqs(ch) {
+    return ch.flatMap { row -> files_only(as_list(row)) }
+}
+
+def vv_fastq_reports(ch) {
+    if ( params.skip_vv ) {
+        return channel.fromPath("${projectDir}/assets/empty").collect()
+    }
+    return ch.collect()
 }
 
 def pub(ch, root, dir) {
@@ -368,6 +381,8 @@ workflow RNASEQ {
         channel.empty() | set { inner_mqc_zip }
         channel.empty() | set { readdist_mqc_data }
         channel.empty() | set { readdist_mqc_zip }
+        channel.empty() | set { raw_fq_reports }
+        channel.empty() | set { trimmed_fq_reports }
         channel.empty() | set { dge_table }
         channel.empty() | set { dge_table_rrnarm }
         channel.empty() | set { counts_rrnarm }
@@ -380,6 +395,10 @@ workflow RNASEQ {
         if ( ep in ['raw_reads', 'trimmed_reads'] ) {
             if ( ep == 'raw_reads' ) {
                 RAW_FASTQC( STAGE.out.raw_reads )
+                if ( !params.skip_vv ) {
+                    VV_RAW_FASTQ( flatten_fastqs(STAGE.out.raw_reads) )
+                    raw_fq_reports = VV_RAW_FASTQ.out.report
+                }
                 RAW_FASTQC.out.fastqc | map { qc -> [ qc[1], qc[2] ] }
                     | flatten
                     | collect
@@ -390,6 +409,10 @@ workflow RNASEQ {
 
                 TRIMGALORE( STAGE.out.raw_reads )
                 trimmed_reads = TRIMGALORE.out.reads
+                if ( !params.skip_vv ) {
+                    VV_TRIMMED_FASTQ( flatten_fastqs(trimmed_reads) )
+                    trimmed_fq_reports = VV_TRIMMED_FASTQ.out.report
+                }
 
                 TRIMMED_FASTQC( trimmed_reads )
                 TRIMMED_FASTQC.out.fastqc | map { qc -> [ qc[1], qc[2] ] }
@@ -412,6 +435,10 @@ workflow RNASEQ {
                 ch_versions = ch_versions.mix(RAW_FASTQC.out.versions).mix(TRIMGALORE.out.versions).mix(RAW_READS_MULTIQC.out.versions)
             } else {
                 trimmed_reads = STAGE.out.trimmed_reads
+                if ( !params.skip_vv ) {
+                    VV_TRIMMED_FASTQ( flatten_fastqs(trimmed_reads) )
+                    trimmed_fq_reports = VV_TRIMMED_FASTQ.out.report
+                }
 
                 TRIMMED_FASTQC( trimmed_reads )
                 TRIMMED_FASTQC.out.fastqc | map { qc -> [ qc[1], qc[2] ] }
@@ -669,13 +696,13 @@ workflow RNASEQ {
         channel.empty() | set { vv_logs }
 
         if ( ep == 'raw_reads' ) {
-            VV_RAW_READS( dp_tools_plugin, ch_outdir, ch_meta, runsheet_path, raw_mqc_zip )
+            VV_RAW_READS( dp_tools_plugin, ch_outdir, ch_meta, runsheet_path, raw_mqc_zip, vv_fastq_reports(raw_fq_reports) )
             vv_logs = vv_logs.mix(VV_RAW_READS.out.log)
             ch_versions = ch_versions.mix(VV_RAW_READS.out.versions)
             ch_published = ch_published.mix( pub_vv(VV_RAW_READS.out.log, ch_root, 'VV_RAW_READS') )
         }
         if ( ep in ['raw_reads', 'trimmed_reads'] ) {
-            VV_TRIMMED_READS( dp_tools_plugin, ch_outdir, ch_meta, runsheet_path, trimmed_mqc_zip )
+            VV_TRIMMED_READS( dp_tools_plugin, ch_outdir, ch_meta, runsheet_path, trimmed_mqc_zip, vv_fastq_reports(trimmed_fq_reports) )
             vv_logs = vv_logs.mix(VV_TRIMMED_READS.out.log)
             ch_versions = ch_versions.mix(VV_TRIMMED_READS.out.versions)
             ch_published = ch_published.mix( pub_vv(VV_TRIMMED_READS.out.log, ch_root, 'VV_TRIMMED_READS') )

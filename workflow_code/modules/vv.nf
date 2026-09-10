@@ -1,14 +1,32 @@
-process VV_RAW_READS {
-  // Run vv_raw_reads.py to generate VV_log.csv pointing to already published data
+process VV_FASTQ {
+  tag { fastq.name }
   label 'VV'
 
-  // Publish VV log
+  input:
+    path(fastq)
+
+  output:
+    path("*.vv_fastq.tsv"), emit: report
+
+  when:
+    !params.skip_vv
+
+  script:
+    """
+    vv_check_fastq.sh "${fastq}" > "${fastq.name}.vv_fastq.tsv"
+    """
+}
+
+process VV_RAW_READS {
+  label 'VV'
+
   input:
     path(dp_tools__NF_RCP)
     val(publishdir)
     val(meta)
-    path(runsheet)                
+    path(runsheet)
     path(raw_reads_multiqc_report_zip)
+    path(fastq_reports, stageAs: 'fastq_reports/*')
 
   output:
     path("VV_log.csv"),   optional: params.skip_vv, emit: log
@@ -16,10 +34,10 @@ process VV_RAW_READS {
 
   script:
     def assay_suffix_arg = params.assay_suffix ? "--assay-suffix ${params.assay_suffix}" : ""
+    def reports_arg = params.skip_vv ? "" : "--fastq-check-dir fastq_reports"
     """
-    # Run V&V unless user requests to skip V&V
     if ${ !params.skip_vv } ; then
-      vv_raw_reads.py --runsheet ${runsheet} --outdir ${publishdir} ${assay_suffix_arg}
+      vv_raw_reads.py --runsheet ${runsheet} --outdir ${publishdir} ${assay_suffix_arg} ${reports_arg}
     fi
 
     echo '"${task.process}":' > versions.yml
@@ -30,13 +48,13 @@ process VV_RAW_READS {
 process VV_TRIMMED_READS {
   label 'VV'
 
-  // Log publishing
   input:
     path(dp_tools__NF_RCP)
     val(publishdir)
     val(meta)
-    path(runsheet)                
+    path(runsheet)
     path(trimmed_reads_multiqc_report_zip)
+    path(fastq_reports, stageAs: 'fastq_reports/*')
 
   output:
     path("VV_log.csv"), optional: params.skip_vv, emit: log
@@ -44,10 +62,10 @@ process VV_TRIMMED_READS {
 
   script:
     def assay_suffix_arg = params.assay_suffix ? "--assay-suffix ${params.assay_suffix}" : ""
+    def reports_arg = params.skip_vv ? "" : "--fastq-check-dir fastq_reports"
     """
-    # Run V&V unless user requests to skip V&V
     if ${ !params.skip_vv } ; then
-      vv_trimmed_reads.py --runsheet ${runsheet} --outdir ${publishdir} ${assay_suffix_arg}
+      vv_trimmed_reads.py --runsheet ${runsheet} --outdir ${publishdir} ${assay_suffix_arg} ${reports_arg}
     fi
 
     echo '"${task.process}":' > versions.yml
