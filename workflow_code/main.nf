@@ -126,14 +126,12 @@ workflow POST_PROCESSING {
         print_banner()
         ch_processed_directory = channel.fromPath("${params.outdir}/${params.accession}", checkIfExists: true)
         UPDATE_ASSAY_TABLE(ch_processed_directory)
-        GENERATE_MD5SUMS(ch_processed_directory)
+        GENERATE_MD5SUMS(ch_processed_directory.combine(channel.of('raw', 'processed')))
         def root = params.accession
         ch_pub = UPDATE_ASSAY_TABLE.out.assay_table.flatMap { f ->
             as_list(f).collect { x -> ["${root}/GeneLab/updated_curation_tables/${x.name}".toString(), x] }
         }.mix(
-            GENERATE_MD5SUMS.out.raw_md5sum.map { f -> ["${root}/GeneLab/${f.name}".toString(), f] }
-        ).mix(
-            GENERATE_MD5SUMS.out.processed_md5sum.map { f -> ["${root}/GeneLab/${f.name}".toString(), f] }
+            GENERATE_MD5SUMS.out.md5sum.map { f -> ["${root}/GeneLab/${f.name}".toString(), f] }
         )
     emit:
         published = ch_pub
