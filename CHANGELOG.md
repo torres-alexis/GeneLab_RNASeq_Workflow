@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--drop_unalignable` excludes samples from DGE when RSEM `pct_unalignable` is at or above `--unalignable_threshold` (default 60). On by default. Default mode only. `--drop_unalignable false` to keep all samples.
 - Publish `log2fc_flag_characterization*.csv` to `VV_Logs/` when VV DGE flags log2fc sign mismatches.
 - Set `process.time` (`--walltime`). Local leaves time unset. `-profile pbspro` caps walltime at 8h.
+- Remote FASTQ/BAM/genes/counts/DGE fetches write GeneLab names. `COPY_*` is local paths only.
 
 ### Fixed
 
