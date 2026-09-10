@@ -9,9 +9,7 @@ include { COPY_BAMS } from '../modules/copy_bams.nf'
 include { COPY_GENES_RESULTS } from '../modules/copy_genes_results.nf'
 include { COPY_COUNTS_TABLE } from '../modules/copy_counts_table.nf'
 include { COPY_DGE_TABLE } from '../modules/copy_dge_table.nf'
-include { FETCH_REMOTE_BAM; FETCH_REMOTE_GENES_RESULTS } from '../modules/fetch_remote.nf'
-include { FETCH_REMOTE_TABLE as FETCH_REMOTE_COUNTS_TABLE } from '../modules/fetch_remote.nf'
-include { FETCH_REMOTE_TABLE as FETCH_REMOTE_DGE_TABLE } from '../modules/fetch_remote.nf'
+include { FETCH_BAM; FETCH_GENES_RESULTS; FETCH_COUNTS_TABLE; FETCH_DGE_TABLE } from '../modules/fetch_remote.nf'
 include { validateParameters } from 'plugin/nf-schema'
 
 def is_remote_uri(p) {
@@ -57,6 +55,28 @@ def samples_txt_from(ch_pairs) {
     return ch_pairs
         .map { pair -> pair[0].id }
         .collectFile(name: "samples.txt", sort: true, newLine: true)
+}
+
+def remote_files(ch) {
+    ch.branch { _meta, files ->
+        remote: files && files[0]?.toString()?.contains("://")
+        local: true
+    }
+}
+
+def remote_path(ch) {
+    ch.branch { p ->
+        remote: is_remote_uri(p)
+        local: true
+    }
+}
+
+def pub_sample(ch, root, dir) {
+    return ch.combine(root).flatMap { row ->
+        def items = as_list(row)
+        def meta = items[0]
+        files_only(items[1..-2]).collect { f -> dest_file(items[-1], "${dir}/${meta.id}", f) }
+    }
 }
 
 workflow STAGE {
@@ -146,23 +166,23 @@ workflow STAGE {
         if ( counts_override ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
             if ( is_remote_uri(params.counts_table_path) ) {
-                FETCH_REMOTE_COUNTS_TABLE( channel.value(params.counts_table_path.toString()) )
-                COPY_COUNTS_TABLE( FETCH_REMOTE_COUNTS_TABLE.out.table )
+                FETCH_COUNTS_TABLE( channel.value(params.counts_table_path.toString()) )
+                counts_table = FETCH_COUNTS_TABLE.out.counts_table
             } else {
                 COPY_COUNTS_TABLE( file(params.counts_table_path) )
+                counts_table = COPY_COUNTS_TABLE.out.counts_table
             }
-            counts_table = COPY_COUNTS_TABLE.out.counts_table
-            published = published.mix( pub(COPY_COUNTS_TABLE.out.counts_table, ch_root, params.mode == 'microbes' ? '03-FeatureCounts' : '03-RSEM_Counts') )
+            published = published.mix( pub(counts_table, ch_root, params.mode == 'microbes' ? '03-FeatureCounts' : '03-RSEM_Counts') )
         } else if ( dge_override ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
             if ( is_remote_uri(params.dge_table_path) ) {
-                FETCH_REMOTE_DGE_TABLE( channel.value(params.dge_table_path.toString()) )
-                COPY_DGE_TABLE( FETCH_REMOTE_DGE_TABLE.out.table )
+                FETCH_DGE_TABLE( channel.value(params.dge_table_path.toString()) )
+                dge_table = FETCH_DGE_TABLE.out.dge_table
             } else {
                 COPY_DGE_TABLE( file(params.dge_table_path) )
+                dge_table = COPY_DGE_TABLE.out.dge_table
             }
-            dge_table = COPY_DGE_TABLE.out.dge_table
-            published = published.mix( pub(COPY_DGE_TABLE.out.dge_table, ch_root, '05-DESeq2_DGE') )
+            published = published.mix( pub(dge_table, ch_root, '05-DESeq2_DGE') )
         } else if ( ep == 'raw_reads' ) {
             samples = PARSE_RUNSHEET.out.samples
             STAGE_READS( samples, channel.value("raw") )
@@ -177,58 +197,34 @@ workflow STAGE {
             published = published.mix( pub(STAGE_READS.out.reads, ch_root, '01-TG_Preproc/Fastq') )
         } else if ( ep == 'bam_files' ) {
             samples = PARSE_RUNSHEET.out.samples
-            ch_bam = samples.branch { _meta, files ->
-                remote: files && files.size() > 0 && is_remote_uri(files[0])
-                local: true
-            }
-            FETCH_REMOTE_BAM( ch_bam.remote )
-            COPY_BAMS(FETCH_REMOTE_BAM.out.bam_files.mix(ch_bam.local))
-            bam_files = COPY_BAMS.out.bam_files
+            ch_bam = remote_files(samples)
+            FETCH_BAM( ch_bam.remote )
+            COPY_BAMS( ch_bam.local )
+            bam_files = FETCH_BAM.out.bam_files.mix( COPY_BAMS.out.bam_files )
             samples_txt = samples_txt_from(bam_files)
-            published = published.mix(
-                COPY_BAMS.out.bam_files.combine(ch_root).flatMap { row ->
-                    def items = as_list(row)
-                    def meta = items[0]
-                    files_only(items[1..-2]).collect { f -> dest_file(items[-1], "${params.mode == 'microbes' ? '02-Bowtie2_Alignment' : '02-STAR_Alignment'}/${meta.id}", f) }
-                }
-            )
+            published = published.mix( pub_sample(bam_files, ch_root, params.mode == 'microbes' ? '02-Bowtie2_Alignment' : '02-STAR_Alignment') )
         } else if ( ep == 'genes_results' ) {
             samples = PARSE_RUNSHEET.out.samples
-            ch_genes = samples.branch { _meta, files ->
-                remote: files && files.size() > 0 && is_remote_uri(files[0])
-                local: true
-            }
-            FETCH_REMOTE_GENES_RESULTS( ch_genes.remote )
-            COPY_GENES_RESULTS(FETCH_REMOTE_GENES_RESULTS.out.genes_results.mix(ch_genes.local))
-            genes_results = COPY_GENES_RESULTS.out.genes_results
+            ch_genes = remote_files(samples)
+            FETCH_GENES_RESULTS( ch_genes.remote )
+            COPY_GENES_RESULTS( ch_genes.local )
+            genes_results = FETCH_GENES_RESULTS.out.genes_results.mix( COPY_GENES_RESULTS.out.genes_results )
             samples_txt = samples_txt_from(genes_results)
-            published = published.mix(
-                COPY_GENES_RESULTS.out.genes_results.combine(ch_root).flatMap { row ->
-                    def items = as_list(row)
-                    def meta = items[0]
-                    files_only(items[1..-2]).collect { f -> dest_file(items[-1], "03-RSEM_Counts/${meta.id}", f) }
-                }
-            )
+            published = published.mix( pub_sample(genes_results, ch_root, '03-RSEM_Counts') )
         } else if ( ep == 'counts_table' ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-            ch_counts = PARSE_RUNSHEET.out.table.branch { p ->
-                remote: is_remote_uri(p)
-                local: true
-            }
-            FETCH_REMOTE_COUNTS_TABLE(ch_counts.remote)
-            COPY_COUNTS_TABLE(FETCH_REMOTE_COUNTS_TABLE.out.table.mix(ch_counts.local.map { p -> file(p) }))
-            counts_table = COPY_COUNTS_TABLE.out.counts_table
-            published = published.mix( pub(COPY_COUNTS_TABLE.out.counts_table, ch_root, params.mode == 'microbes' ? '03-FeatureCounts' : '03-RSEM_Counts') )
+            ch_counts = remote_path(PARSE_RUNSHEET.out.table)
+            FETCH_COUNTS_TABLE(ch_counts.remote)
+            COPY_COUNTS_TABLE(ch_counts.local.map { p -> file(p) })
+            counts_table = FETCH_COUNTS_TABLE.out.counts_table.mix( COPY_COUNTS_TABLE.out.counts_table )
+            published = published.mix( pub(counts_table, ch_root, params.mode == 'microbes' ? '03-FeatureCounts' : '03-RSEM_Counts') )
         } else if ( ep == 'dge_table' ) {
             samples = PARSE_RUNSHEET.out.samples.map { meta, _files -> meta }
-            ch_dge = PARSE_RUNSHEET.out.table.branch { p ->
-                remote: is_remote_uri(p)
-                local: true
-            }
-            FETCH_REMOTE_DGE_TABLE(ch_dge.remote)
-            COPY_DGE_TABLE(FETCH_REMOTE_DGE_TABLE.out.table.mix(ch_dge.local.map { p -> file(p) }))
-            dge_table = COPY_DGE_TABLE.out.dge_table
-            published = published.mix( pub(COPY_DGE_TABLE.out.dge_table, ch_root, '05-DESeq2_DGE') )
+            ch_dge = remote_path(PARSE_RUNSHEET.out.table)
+            FETCH_DGE_TABLE(ch_dge.remote)
+            COPY_DGE_TABLE(ch_dge.local.map { p -> file(p) })
+            dge_table = FETCH_DGE_TABLE.out.dge_table.mix( COPY_DGE_TABLE.out.dge_table )
+            published = published.mix( pub(dge_table, ch_root, '05-DESeq2_DGE') )
         }
 
     emit:
