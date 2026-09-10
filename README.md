@@ -352,6 +352,8 @@ Defaults:
 
 * `--pbs_internet_queue` - PBS queue for fetch/download processes when using `-profile pbspro` (default: none). Empty uses `--pbs_queue`.
 
+* `--walltime` - default process walltime for `-profile slurm` / `pbspro` (default: `2.h`). `-profile pbspro` caps all process walltimes at 8h.
+
 * `--mode` - specifies which pipeline to use: set to `default` to run GL-DPPD-7101-G pipeline or set to `microbes` for the GL-DPPD-7115 prokaryotic pipeline (type: string, default: "default")
   > Note: This allows the workflow to process either eukaryotic (default) or prokaryotic RNAseq data using the appropriate pipeline.
 

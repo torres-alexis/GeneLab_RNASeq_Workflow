@@ -93,6 +93,11 @@
           "type": "string",
           "default": "",
           "description": "PBS queue for fetch/download processes. Empty uses --pbs_queue."
+        },
+        "walltime": {
+          "type": "string",
+          "default": "2.h",
+          "description": "Default process walltime for slurm/pbspro."
         }
       }
     },
