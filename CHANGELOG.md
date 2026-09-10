@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exclude samples with at least 60% RSEM unalignable reads before DGE by default for raw-read, trimmed-read and BAM entry points in default mode. Configure with `--drop_unalignable` and `--unalignable_threshold`.
 - Publish unnormalized counts in the RSEM or FeatureCounts `03` directory, and normalized/VST counts in `04`.
 - Update process resource allocations.
+- Enable scratch staging for Slurm and PBS Pro processes.
 - Update the `dp_tools` image to `1.3.8-slim`.
 - Stop generating unused rRNA-removal summary files.
 
