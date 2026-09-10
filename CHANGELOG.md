@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Publish `log2fc_flag_characterization*.csv` to `VV_Logs/` when VV DGE flags log2fc sign mismatches.
 - Set `process.time` (`--walltime`). Local leaves time unset. `-profile pbspro` caps walltime at 8h.
 - Remote FASTQ/BAM/genes/counts/DGE fetches write GeneLab names. `COPY_*` is local paths only.
+- Raw/trimmed FASTQ gzip+format VV is one pass per file in parallel. MultiQC VV no longer decompresses every FASTQ.
 
 ### Fixed
 
