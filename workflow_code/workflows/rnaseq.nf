@@ -477,7 +477,7 @@ workflow RNASEQ {
             } else {
                 BUILD_STAR_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta, max_read_length )
                 ALIGN_STAR( trimmed_reads, BUILD_STAR_INDEX.out.index_dir.first() )
-                SORT_AND_INDEX_BAM( ALIGN_STAR.out.bam_by_coord )
+                SORT_AND_INDEX_BAM( ALIGN_STAR.out.bam )
                 ALIGN_MULTIQC( samples_txt, ALIGN_STAR.out.alignment_logs | collect, ch_multiqc_config, "align_")
 
                 sorted_bam = SORT_AND_INDEX_BAM.out.sorted_bam

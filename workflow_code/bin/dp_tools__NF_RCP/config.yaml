@@ -563,7 +563,7 @@ data assets:
     processed location: 
       - *alignDataDir
       - "{sample}"
-      - "{sample}_Aligned.sortedByCoord.out.bam"
+      - "{sample}_Aligned.out.bam"
 
     tags:
       - processed

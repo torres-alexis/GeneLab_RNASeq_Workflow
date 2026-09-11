@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remote FASTQ/BAM/genes/counts/DGE fetches write GeneLab names. `COPY_*` is local paths only.
 - Raw/trimmed FASTQ gzip+format VV is one pass per file in parallel. MultiQC VV no longer decompresses every FASTQ.
 - Split `--post_processing` md5 into parallel raw and processed jobs.
+- STAR alignment no longer sorts the BAM (`*_Aligned.sortedByCoord.out.bam` → `*_Aligned.out.bam`). Samtools still sorts and indexes the published genome BAM (`*_Aligned.sortedByCoord_sorted.out.bam` + `.bai`).
 
 ### Fixed
 

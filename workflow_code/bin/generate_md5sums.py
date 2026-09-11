@@ -57,7 +57,7 @@ def should_include(filepath, outdir):
         return True
     # If it's a STAR output but not in the keep list, filter it out
     star_output_keywords = [
-        "Aligned.sortedByCoord.out.bam", "ReadsPerGene.out.tab", "Log.out", "Log.progress.out"
+        "Aligned.sortedByCoord.out.bam", "Aligned.out.bam", "ReadsPerGene.out.tab", "Log.out", "Log.progress.out"
     ]
     if any(keyword in basename for keyword in star_output_keywords):
         return False
