@@ -1,7 +1,7 @@
 include { STAGE } from '../subworkflows/stage.nf'
 
 include { PARSE_ANNOTATIONS_TABLE } from '../modules/parse_annotations_table.nf'
-include { FETCH_TABLE as FETCH_ANNOTATIONS_CSV } from '../modules/fetch_remote.nf'
+include { FETCH_TABLE as FETCH_ANNOTATIONS_TABLE } from '../modules/fetch_remote.nf'
 include { FETCH_TABLE as FETCH_GENE_ANNOTATIONS } from '../modules/fetch_remote.nf'
 include { DOWNLOAD_REFERENCES; COPY_REFERENCES } from '../modules/download_references.nf'
 include { SUBSAMPLE_GENOME } from '../modules/subsample_genome.nf'
@@ -232,8 +232,8 @@ workflow RNASEQ {
         ch_meta | map { meta -> meta.organism_sci } | set { organism_sci }
 
         if ( is_remote_uri(params.reference_table) ) {
-            FETCH_ANNOTATIONS_CSV( annotations_csv_url_string )
-            PARSE_ANNOTATIONS_TABLE( FETCH_ANNOTATIONS_CSV.out.table, organism_sci )
+            FETCH_ANNOTATIONS_TABLE( annotations_csv_url_string )
+            PARSE_ANNOTATIONS_TABLE( FETCH_ANNOTATIONS_TABLE.out.table, organism_sci )
         } else {
             PARSE_ANNOTATIONS_TABLE( annotations_csv_url_string.map { p -> file(p) }, organism_sci )
         }
