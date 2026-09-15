@@ -424,7 +424,7 @@ The outputs from the Analysis Staging and V&V Pipeline Subworkflows are describe
    - Output:
      - GeneLab/processing_info_GLbulkRNAseq.zip (Archive containing workflow execution metadata)
        - processing_info/samples.txt (single column list of all sample names in the dataset)
-       - processing_info/nextflow_log_GLbulkRNAseq.txt (Nextflow execution logs captured via `nextflow log`)
+       - processing_info/nextflow_processing_info_GLbulkRNAseq.txt (Nextflow execution logs captured via `nextflow log`)
        - processing_info/nextflow_run_command_GLbulkRNAseq.txt (Exact command line used to initiate the workflow)
 
 **QC metrics summary**
