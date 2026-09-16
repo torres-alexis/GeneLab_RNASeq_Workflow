@@ -261,7 +261,7 @@ Defaults:
 * `--strandedness` default `auto` (RSeQC infer_experiment). `none` / `forward` / `reverse` override. Required, no `auto`, for `bam_files`.
 * `--mode default` BAM: STAR `*_Aligned.toTranscriptome.out.bam`. `--mode microbes` BAM: Bowtie2 `*_sorted.bam`.
 
->**Note:** When using `--accession` and running the workflow from an intermediate entry point, the workflow downloads the input files from [OSDR](https://osdr.nasa.gov/bio/repo/) and generates the runsheet containing the required metadata. When using both `--accession` and `--runsheet_path` together, the workflow will validate that the runsheet contains the expected input file columns.
+>Note: When using `--accession` and running the workflow from an intermediate entry point, the workflow downloads the input files from [OSDR](https://osdr.nasa.gov/bio/repo/) and generates the runsheet containing the required metadata. When using both `--accession` and `--runsheet_path` together, the workflow will validate that the runsheet contains the expected input file columns.
 
 <br>
 
