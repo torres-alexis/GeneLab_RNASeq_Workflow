@@ -686,6 +686,7 @@ workflow RNASEQ {
             )
             qc_metrics = PARSE_QC_METRICS.out.file
             ch_published = ch_published.mix( pub(PARSE_QC_METRICS.out.file, ch_root, 'GeneLab') )
+            ch_published = ch_published.mix( pub(PARSE_QC_METRICS.out.validation, ch_root, 'GeneLab') )
             if ( params.runsheet_path ) {
                 ch_published = ch_published.mix( pub(PARSE_QC_METRICS.out.metadata_copy, ch_root, 'Metadata') )
             }

@@ -9,6 +9,7 @@ process PARSE_QC_METRICS {
 
     output:
         path("qc_metrics${params.assay_suffix}.csv"), emit: file
+        path("qc_validation${params.assay_suffix}.txt"), optional: true, emit: validation
         path("isa_archive/*"), optional: true, emit: metadata_copy
 
     script:
