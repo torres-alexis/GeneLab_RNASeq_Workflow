@@ -689,6 +689,7 @@ workflow RNASEQ {
                 runsheet_path
             )
             ch_published = ch_published.mix( pub(PARSE_QC_METRICS.out.file, ch_root, 'GeneLab') )
+            ch_published = ch_published.mix( pub(PARSE_QC_METRICS.out.validation, ch_root, 'GeneLab') )
         }
 
         channel.empty() | set { vv_logs }

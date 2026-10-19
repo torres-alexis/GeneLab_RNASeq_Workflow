@@ -10,6 +10,7 @@ process PARSE_QC_METRICS {
 
     output:
         path("qc_metrics${params.assay_suffix}.csv"), emit: file
+        path("qc_validation${params.assay_suffix}.txt"), optional: true, emit: validation
 
     script:
         def assay_suffix_arg = params.assay_suffix ? "--assay_suffix ${params.assay_suffix}" : ""

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add PBS Pro and Podman profiles.
 - Support local and mixed local/remote FASTA and GTF references.
 - Run applicable ERCC spike-in analysis after RSEM quantification; publish notebooks, HTML and tables under `ERCC_Analysis`.
-- Publish DGE sign-mismatch reports when generated.
+- Publish `qc_validation*.txt` and DGE sign-mismatch reports when generated.
 
 ### Changed
 
