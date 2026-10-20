@@ -921,42 +921,30 @@ def add_unmapped_reads_column(df, glds_prefix, assay_suffix, runsheet_df=None, m
     return df
 
 def add_merged_sequence_data_column(df, glds_prefix, assay_suffix, runsheet_df=None):
-    """Add the Merged Sequence Data File column to the dataframe.
-    
-    This is for raw/merged sequence data files (before trimming).
-    Similar to trimmed data column but uses "raw" instead of "trimmed".
-    
+    """Add the Merged Sequence Data column to the dataframe.
+
     Args:
         df: The assay table dataframe
         glds_prefix: The GLDS prefix to add to filenames
         assay_suffix: The assay suffix to add to filenames
         runsheet_df: Optional runsheet dataframe with sample information
-        
+
     Returns:
         The modified dataframe
     """
-    column_name = "Parameter Value[Merged Sequence Data File]"
+    column_name = "Parameter Value[Merged Sequence Data]"
     alternative_names = [
-        "Characteristics[Merged Sequence Data File]"
+        "Parameter Value[Merged Sequence Data File]",
+        "Characteristics[Merged Sequence Data File]",
     ]
-    
-    # Check if column already exists
-    existing_col = find_column_case_insensitive(df, column_name)
-    if not existing_col:
-        for alt_name in alternative_names:
-            existing_col = find_column_case_insensitive(df, alt_name)
-            if existing_col:
-                break
-    
-    # Always add/update this column
-    
+
     # Determine if paired-end from runsheet
     is_paired_end = is_paired_end_data(runsheet_df)
     print(f"Data is {'paired-end' if is_paired_end else 'single-end'} based on runsheet")
-    
+
     # Find the sample name column in the assay table
     sample_col = next((col for col in df.columns if 'Sample Name' in col), None)
-    
+
     if not sample_col:
         print("Warning: Could not find Sample Name column in assay table")
         # If no sample column, just use placeholder values
@@ -967,26 +955,42 @@ def add_merged_sequence_data_column(df, glds_prefix, assay_suffix, runsheet_df=N
     else:
         # Get sample names from assay table
         assay_sample_names = df[sample_col].tolist()
-        
+
         values = []
         for assay_sample in assay_sample_names:
             sample = processing_sample_name(assay_sample)
-            
+
             if is_paired_end:
                 # For paired-end data, create entries with both R1 and R2 files, comma-separated without spaces
                 values.append(f"{glds_prefix}{sample}{assay_suffix}_R1_raw.fastq.gz,{glds_prefix}{sample}{assay_suffix}_R2_raw.fastq.gz")
             else:
                 # For single-end data
                 values.append(f"{glds_prefix}{sample}{assay_suffix}_raw.fastq.gz")
-    
-    # Remove existing column if present
+
+    existing_col = find_column_case_insensitive(df, column_name)
+    for alt_name in alternative_names:
+        hit = find_column_case_insensitive(df, alt_name)
+        if not hit or hit == existing_col:
+            continue
+        if existing_col:
+            print(f"Removing existing column: {hit}")
+            df = df.drop(columns=[hit])
+            column_changes.append(f"Removed: {hit}")
+        else:
+            existing_col = hit
+
     if existing_col:
-        print(f"Updating existing Merged Sequence Data File column: {existing_col}")
-        df = df.drop(columns=[existing_col])
-        column_changes.append(f"Updated: {existing_col} -> {column_name}")
-    else:
-        print("Merged Sequence Data File column not found. Adding new column.")
-        column_changes.append(f"Added: {column_name}")
+        print(f"Updating existing Merged Sequence Data column: {existing_col}")
+        if existing_col != column_name:
+            df = df.rename(columns={existing_col: column_name})
+            column_changes.append(f"Updated: {existing_col} -> {column_name}")
+        else:
+            column_changes.append(f"Updated: {column_name}")
+        df[column_name] = values
+        return df
+
+    print("Merged Sequence Data column not found. Adding new column.")
+    column_changes.append(f"Added: {column_name}")
 
     # Insert left of MultiQC File Names if present, else append at end
     insert_position = None
@@ -998,7 +1002,7 @@ def add_merged_sequence_data_column(df, glds_prefix, assay_suffix, runsheet_df=N
         df[column_name] = values
     else:
         df.insert(insert_position, column_name, values)
-    
+
     return df
 
 def add_trimmed_data_column(df, glds_prefix, assay_suffix, runsheet_df=None):
@@ -1672,7 +1676,7 @@ def main():
         # Add read length from MultiQC report (preserve if exists)
         assay_df = add_read_length(assay_df, args.outdir, args.glds_accession, args.assay_suffix, runsheet_df)
         
-        # Add Merged Sequence Data File column (raw/merged files before trimming, if present)
+        # Add Merged Sequence Data column
         assay_df = add_merged_sequence_data_column(assay_df, glds_prefix, args.assay_suffix, runsheet_df=runsheet_df)
         
         # Add Raw MultiQC reports column (preserve if exists)
