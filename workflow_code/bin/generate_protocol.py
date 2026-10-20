@@ -56,6 +56,40 @@ def unalignable_protocol_sentence(names, threshold):
         f"from count normalization and differential expression analysis."
     )
 
+def organism_part_values(runsheet_path):
+    if not runsheet_path or not os.path.exists(runsheet_path):
+        return []
+    with open(runsheet_path, newline="") as f:
+        reader = csv.DictReader(f)
+        columns = list(reader.fieldnames or [])
+        rows = list(reader)
+    col = None
+    for c in columns:
+        text = str(c)
+        if text.startswith("Factor Value[") and text.endswith("]"):
+            name = text[len("Factor Value["):-1].strip().lower()
+            if name == "organism part":
+                col = c
+                break
+    if not col:
+        return []
+    values = []
+    seen = set()
+    for row in rows:
+        value = (row.get(col) or "").strip()
+        if value and value not in seen:
+            seen.add(value)
+            values.append(value)
+    return values
+
+def organism_part_protocol_sentence(values):
+    if len(values) < 2:
+        return ""
+    return (
+        f"The runsheet organism part factor included {len(values)} values, {_name_list(values)}, "
+        "and count normalization and differential expression analysis were performed separately for each organism part. "
+    )
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Generate protocol file for GeneLab RNA-seq pipeline')
     parser.add_argument('--mode', choices=['standard', 'microbes'], default='standard',
@@ -338,7 +372,9 @@ def generate_protocol_content(args, software_versions):
             description += f"A runsheet was generated with dp_tools (version {dp_tools_version}) and the runsheet and quantification data were imported to R (version {r_version}) with tximport (version {tximport_version}), ERCC genes were removed, and the non-ERCC genes were normalized with DESeq2 (version {deseq2_version}) median of ratios method. "
         else:
             description += f"A runsheet was generated with dp_tools (version {dp_tools_version}) and the runsheet and quantification data were imported to R (version {r_version}) with tximport (version {tximport_version}) and normalized with DESeq2 (version {deseq2_version}) median of ratios method. "
-    
+
+    description += organism_part_protocol_sentence(organism_part_values(getattr(args, "runsheet", None)))
+
     # Parse runsheet for technical replicate handling
     tech_rep_sentence = ""
     if hasattr(args, 'runsheet') and args.runsheet and os.path.exists(args.runsheet):
