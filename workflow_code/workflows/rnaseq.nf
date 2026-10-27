@@ -25,6 +25,7 @@ include { QUANTIFY_RSEM_GENES } from '../modules/quantify_rsem_genes.nf'
 
 include { BUILD_BOWTIE2_INDEX } from '../modules/build_bowtie2_index.nf'
 include { ALIGN_BOWTIE2 } from '../modules/align_bowtie2.nf'
+include { SAM_TO_BAM } from '../modules/sam_to_bam.nf'
 include { GET_GTF_FEATURES } from '../modules/get_gtf_features.nf'
 include { FEATURECOUNTS } from '../modules/featurecounts.nf'
 include { QUANTIFY_FEATURECOUNTS_GENES } from '../modules/quantify_featurecounts_genes.nf'
@@ -461,14 +462,15 @@ workflow RNASEQ {
             if ( microbes ) {
                 BUILD_BOWTIE2_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta )
                 ALIGN_BOWTIE2( trimmed_reads, BUILD_BOWTIE2_INDEX.out.index_dir.first() )
-                SORT_AND_INDEX_BAM( ALIGN_BOWTIE2.out.bam )
+                SAM_TO_BAM( ALIGN_BOWTIE2.out.sam )
+                SORT_AND_INDEX_BAM( SAM_TO_BAM.out.bam )
                 ALIGN_MULTIQC( samples_txt, ALIGN_BOWTIE2.out.alignment_logs.map { _m, f -> f } | collect, ch_multiqc_config, "align_")
 
                 sorted_bam = SORT_AND_INDEX_BAM.out.sorted_bam
                 bam_only_files = SORT_AND_INDEX_BAM.out.sorted_bam.map { row -> row[1] } | toSortedList()
                 align_mqc_data = ALIGN_MULTIQC.out.data
                 align_mqc_zip = ALIGN_MULTIQC.out.zipped_data
-                ch_versions = ch_versions.mix(ALIGN_BOWTIE2.out.versions)
+                ch_versions = ch_versions.mix(ALIGN_BOWTIE2.out.versions).mix(SAM_TO_BAM.out.versions)
                 ch_published = ch_published
                     .mix( pub_by_meta(ALIGN_BOWTIE2.out.alignment_logs, ch_root, '02-Bowtie2_Alignment') )
                     .mix( pub_by_meta(ALIGN_BOWTIE2.out.unmapped_reads, ch_root, '02-Bowtie2_Alignment') )
