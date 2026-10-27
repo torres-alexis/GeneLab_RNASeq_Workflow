@@ -518,7 +518,7 @@ output_table <- tibble::rownames_to_column(normCounts, var = params$gene_id_type
 ```{r run-deseq2-LRT}
 ##### Generate F statistic p-value (similar to ANOVA p-value) using DESeq2 likelihood ratio test (LRT) design #####
 print(sprintf("DEBUG: %s: Generating Likelihood Ratio Test Based Statistics", Sys.time()))
-dds_lrt <- DESeq(dds, test = "LRT", reduced = ~1)
+dds_lrt <- DESeq(dds, test = "LRT", reduced = ~1, parallel = TRUE, BPPARAM = BPPARAM)
 res_lrt <- results(dds_lrt)
 # Store LRT p-value (add after means and stdevs)
 lrt_pvalues <- res_lrt@listData$padj

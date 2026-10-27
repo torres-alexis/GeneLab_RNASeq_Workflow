@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Run FASTQ validation per file and raw/processed checksum generation in parallel.
 - Update process resource allocations and walltimes. Leave local walltime unset and cap PBS Pro tasks at eight hours.
 - Enable scratch staging for Slurm and PBS Pro processes.
+- Use the configured DESeq2 backend for the LRT step.
 - Update the `dp_tools` image to `1.3.8-slim`.
 - Normalize merged-sequence assay fields.
 - Stop generating unused rRNA-removal summary files.
