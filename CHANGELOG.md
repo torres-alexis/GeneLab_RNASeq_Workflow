@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Use the resolved output directory for validation and post-processing.
+
 - Fixed wording in Dummy DGE debug log and param description.
 - NF 26 `publishDir` pattern closures are predicates, not glob strings.
 - ISA archive publishing when the workflow is run with both `--isa_archive_path` and `--runsheet_path`.

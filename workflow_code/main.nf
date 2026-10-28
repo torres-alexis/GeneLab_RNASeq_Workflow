@@ -56,7 +56,7 @@ workflow {
         } else {
             print_banner()
             RNASEQ(
-                params.outdir ? channel.fromPath(params.outdir, checkIfExists: true) : null,
+                channel.value(workflow.outputDir),
                 channel.value(dp_tools_plugin()),
                 channel.value(params.reference_table),
                 params.accession ? channel.value(params.accession) : null,
@@ -82,7 +82,7 @@ workflow STAGE_ONLY {
     main:
         print_banner()
         STAGE(
-            params.outdir ? channel.fromPath(params.outdir, checkIfExists: true) : null,
+            channel.value(workflow.outputDir),
             channel.value(dp_tools_plugin()),
             params.accession ? channel.value(params.accession) : null,
             params.isa_archive_path ? channel.fromPath(params.isa_archive_path) : null,
@@ -124,7 +124,7 @@ workflow STAGE_ONLY {
 workflow POST_PROCESSING {
     main:
         print_banner()
-        ch_processed_directory = channel.fromPath("${params.outdir}/${params.accession}", checkIfExists: true)
+        ch_processed_directory = channel.fromPath("${workflow.outputDir}/${params.accession}", checkIfExists: true)
         UPDATE_ASSAY_TABLE(ch_processed_directory)
         GENERATE_MD5SUMS(ch_processed_directory.combine(channel.of('raw', 'processed')))
         def root = params.accession
