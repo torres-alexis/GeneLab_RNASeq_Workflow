@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Split DGE by `Factor Value[organism part]` when multiple values are present; label outputs and describe the split in the protocol.
 - Exclude samples with at least 60% RSEM unalignable reads before DGE by default for raw-read, trimmed-read and BAM entry points in default mode. Configure with `--drop_unalignable` and `--unalignable_threshold`.
 - Publish unnormalized counts in the RSEM or FeatureCounts `03` directory, and normalized/VST counts in `04`.
+- Omit redundant rRNA-removed SampleTable and contrasts copies from checksums.
 - Have STAR emit `*_Aligned.out.bam`. Convert Bowtie2 SAM to BAM in a separate step before sorting.
 - Run FASTQ validation per file and raw/processed checksum generation in parallel.
 - Update process resource allocations and walltimes. Leave local walltime unset and cap PBS Pro tasks at eight hours.

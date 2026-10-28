@@ -93,6 +93,17 @@ def should_include(filepath, outdir):
         f"NumNonZeroGenes{args.assay_suffix}.csv"
     ]:
         return False
+    # Filter rRNArm contrasts and SampleTable
+    suffix = re.escape(args.assay_suffix)
+    if re.fullmatch(rf"(contrasts|SampleTable)(_.*)?_rRNArm{suffix}\.csv", basename):
+        return False
+    # Filter organism-part unnormalized counts
+    unnorm = re.fullmatch(
+        rf"(RSEM|FeatureCounts)_Unnormalized_Counts(?P<label>.*){suffix}\.csv",
+        basename,
+    )
+    if unnorm and unnorm.group("label") not in ("", "_rRNArm"):
+        return False
     return True
 
 def main():
