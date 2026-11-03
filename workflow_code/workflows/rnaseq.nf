@@ -153,8 +153,18 @@ def dge_input(jobs, meta, annot, counts, rrna) {
     }
 }
 
+def publish_unnorm(name) {
+    def suffix = java.util.regex.Pattern.quote(params.assay_suffix ?: "")
+    def matcher = name =~ "(?:RSEM|FeatureCounts)_Unnormalized_Counts(.*)${suffix}\\.csv"
+    if (!matcher.matches()) return true
+    return matcher.group(1) in ["", "_rRNArm"]
+}
+
 def pub_dge(dge, root, side_tables=true) {
-    def published = pub(dge.norm_counts, root, '04-DESeq2_NormCounts')
+    def norm_counts = dge.norm_counts.map { row ->
+        as_list(row).findAll { f -> publish_unnorm(f.name.toString()) }
+    }
+    def published = pub(norm_counts, root, '04-DESeq2_NormCounts')
         .mix(pub(dge.vst_norm_counts, root, '04-DESeq2_NormCounts'))
         .mix(pub(dge.dge_table, root, '05-DESeq2_DGE'))
     if (side_tables) {

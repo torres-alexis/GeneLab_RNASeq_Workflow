@@ -209,7 +209,7 @@ def log_check_result(log_path, component, sample_id, check_name, status, message
     with open(log_path, 'a') as f:
         f.write(f"{component},{sample_id},{check_name},{status},{flag_code},{message},{details}\n")
 
-def check_deseq2_normcounts_existence(outdir, log_path, assay_suffix="_GLbulkRNAseq", mode="default"):
+def check_deseq2_normcounts_existence(outdir, log_path, assay_suffix="_GLbulkRNAseq", mode="default", require_unnorm=True):
     """Check if DESeq2 normalized counts files exist.
     
     Args:
@@ -239,10 +239,11 @@ def check_deseq2_normcounts_existence(outdir, log_path, assay_suffix="_GLbulkRNA
     
     # List of expected files
     expected_files = [
-        unnorm_file,
         f"Normalized_Counts{assay_suffix}.csv",
         f"VST_Counts{assay_suffix}.csv"
     ]
+    if require_unnorm:
+        expected_files.insert(0, unnorm_file)
     
     missing_files = []
     
@@ -2609,7 +2610,10 @@ def main():
         # Check DESeq2 normalized counts files
         print("\nChecking DESeq2 normalized counts files...")
         try:
-            norm_counts_passed = check_deseq2_normcounts_existence(norm_counts_dir, vv_log_path, final_suffix, args.mode)
+            norm_counts_passed = check_deseq2_normcounts_existence(
+                norm_counts_dir, vv_log_path, final_suffix, args.mode,
+                require_unnorm=stratum in ("", "rRNArm"),
+            )
         except Exception as e:
             print(f"Error during normalized counts check: {str(e)}")
             log_check_result(vv_log_path, "dge_NormCounts", "all", "check_deseq2_normcounts_existence", 
