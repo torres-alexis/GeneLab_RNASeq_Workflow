@@ -263,7 +263,7 @@ def check_deseq2_normcounts_existence(outdir, log_path, assay_suffix="_GLbulkRNA
                          f"All DESeq2 normalized counts files found", "")
         return True
 
-def check_deseq2_dge_existence(outdir, log_path, assay_suffix="_GLbulkRNAseq"):
+def check_deseq2_dge_existence(outdir, log_path, assay_suffix="_GLbulkRNAseq", stratum=""):
     """Check if DESeq2 DGE files exist.
     
     Args:
@@ -278,17 +278,19 @@ def check_deseq2_dge_existence(outdir, log_path, assay_suffix="_GLbulkRNAseq"):
     
     # Strip any stratification suffix from component name
     if "_" in os.path.basename(outdir):
-        stratum = os.path.basename(outdir).split("_")[-1]
-        if "rRNArm" in stratum:
-            component = f"{component}_{stratum}"
+        path_stratum = os.path.basename(outdir).split("_")[-1]
+        if "rRNArm" in path_stratum:
+            component = f"{component}_{path_stratum}"
         else:
-            component = f"{component}_{stratum}"
-    
-    expected_files = [
-        f"contrasts{assay_suffix}.csv",
-        f"differential_expression{assay_suffix}.csv",
-        f"SampleTable{assay_suffix}.csv"
-    ]
+            component = f"{component}_{path_stratum}"
+
+    expected_files = [f"differential_expression{assay_suffix}.csv"]
+    if not is_rrna_stratum(stratum):
+        expected_files = [
+            f"contrasts{assay_suffix}.csv",
+            f"differential_expression{assay_suffix}.csv",
+            f"SampleTable{assay_suffix}.csv",
+        ]
     
     missing_files = []
     
@@ -339,6 +341,17 @@ def dge_file_suffix(assay_suffix, stratum=""):
     if stratum:
         return f"_{stratum}{assay_suffix}"
     return assay_suffix
+
+
+def is_rrna_stratum(stratum):
+    return stratum == "rRNArm" or stratum.endswith("_rRNArm")
+
+
+def side_table_suffix(assay_suffix, stratum=""):
+    if not is_rrna_stratum(stratum):
+        return assay_suffix
+    prefix = f"_{stratum}"
+    return prefix.replace("_rRNArm", "", 1) + assay_suffix[len(prefix):]
 
 
 def log2fc_flag_csv_name(assay_suffix):
@@ -453,7 +466,7 @@ def check_sample_table_against_runsheet(outdir, runsheet_path, log_path, assay_s
         check_suffix = ""
         component_name = component
     
-    sample_table_path = os.path.join(outdir, f"SampleTable{assay_suffix}.csv")
+    sample_table_path = os.path.join(outdir, f"SampleTable{side_table_suffix(assay_suffix, stratum_value)}.csv")
     
     # Check if sample table exists
     if not os.path.exists(sample_table_path):
@@ -545,7 +558,7 @@ def check_sample_table_for_correct_group_assignments(outdir, runsheet_path, log_
         check_suffix = ""
         component_name = component
     
-    sample_table_path = os.path.join(outdir, f"SampleTable{assay_suffix}.csv")
+    sample_table_path = os.path.join(outdir, f"SampleTable{side_table_suffix(assay_suffix, stratum_value)}.csv")
     
     # Check if sample table exists
     if not os.path.exists(sample_table_path):
@@ -894,7 +907,7 @@ def check_contrasts_table_headers(outdir, runsheet_path, log_path, assay_suffix=
         component_name = component
     
     # Look for contrasts table with the correct filename pattern
-    contrasts_table_path = os.path.join(outdir, f"contrasts{assay_suffix}.csv")
+    contrasts_table_path = os.path.join(outdir, f"contrasts{side_table_suffix(assay_suffix, stratum_value)}.csv")
     
     # Check if contrasts table exists
     if not os.path.exists(contrasts_table_path):
@@ -1006,7 +1019,7 @@ def check_contrasts_table_rows(outdir, log_path, assay_suffix="_GLbulkRNAseq",
         component_name = component
     
     # Look for contrasts table with the correct filename pattern
-    contrasts_table_path = os.path.join(outdir, f"contrasts{assay_suffix}.csv")
+    contrasts_table_path = os.path.join(outdir, f"contrasts{side_table_suffix(assay_suffix, stratum_value)}.csv")
     
     # Check if contrasts table exists
     if not os.path.exists(contrasts_table_path):
@@ -1678,8 +1691,7 @@ def check_dge_table_group_columns_constraints(outdir, runsheet_path, log_path, a
     # Get group information
     try:
         # Read sample table to get group assignments
-        sample_table_path = os.path.join(outdir, f"SampleTable{assay_suffix}.csv")
-        
+        sample_table_path = os.path.join(outdir, f"SampleTable{side_table_suffix(assay_suffix, stratum_value)}.csv")
         if not os.path.exists(sample_table_path):
             log_check_result(log_path, component_name, "all", check_name, "HALT", 
                            "Sample table not found", 
@@ -2588,7 +2600,7 @@ def main():
             factor_name = ""
             factor_value = ""
         
-        counts_suffix = ("_rRNArm" if (stratum == "rRNArm" or stratum.endswith("_rRNArm")) else "") + args.assay_suffix
+        counts_suffix = ("_rRNArm" if is_rrna_stratum(stratum) else "") + args.assay_suffix
 
         # Adjust paths based on stratum
         norm_counts_dir = paths["norm_counts"]
@@ -2630,55 +2642,58 @@ def main():
         # Check DESeq2 DGE files
         print("\nChecking DESeq2 DGE files...")
         try:
-            dge_passed = check_deseq2_dge_existence(dge_dir, vv_log_path, final_suffix)
+            dge_passed = check_deseq2_dge_existence(dge_dir, vv_log_path, final_suffix, stratum)
         except Exception as e:
             print(f"Error during DGE files check: {str(e)}")
             log_check_result(vv_log_path, "dge_DGE", "all", "check_deseq2_dge_existence", 
                            "RED", f"Exception during check", str(e))
         
-        # Check sample table against runsheet
-        print("\nChecking sample table against runsheet...")
-        try:
-            sample_table_passed = check_sample_table_against_runsheet(
-                dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during sample table check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_sample_table_against_runsheet", 
-                           "RED", f"Exception during check", str(e))
-        
-        # Check sample table for correct group assignments
-        print("\nChecking sample table for correct group assignments...")
-        try:
-            group_assignments_passed = check_sample_table_for_correct_group_assignments(
-                dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during group assignments check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_sample_table_for_correct_group_assignments", 
-                           "RED", f"Exception during check", str(e))
-        
-        # Check contrasts table headers
-        print("\nChecking contrasts table headers...")
-        try:
-            contrasts_headers_passed = check_contrasts_table_headers(
-                dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during contrasts table headers check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_headers", 
-                           "RED", f"Exception during check", str(e))
-        
-        # Check contrasts table rows
-        print("\nChecking contrasts table rows...")
-        try:
-            contrasts_rows_passed = check_contrasts_table_rows(
-                dge_dir, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during contrasts table rows check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_rows", 
-                           "RED", f"Exception during check", str(e))
+        # rRNArm publishes the DGE table only
+        if is_rrna_stratum(stratum):
+            sample_table_passed = True
+            group_assignments_passed = True
+            contrasts_headers_passed = True
+            contrasts_rows_passed = True
+        else:
+            print("\nChecking sample table against runsheet...")
+            try:
+                sample_table_passed = check_sample_table_against_runsheet(
+                    dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during sample table check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_sample_table_against_runsheet",
+                               "RED", f"Exception during check", str(e))
+
+            print("\nChecking sample table for correct group assignments...")
+            try:
+                group_assignments_passed = check_sample_table_for_correct_group_assignments(
+                    dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during group assignments check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_sample_table_for_correct_group_assignments",
+                               "RED", f"Exception during check", str(e))
+
+            print("\nChecking contrasts table headers...")
+            try:
+                contrasts_headers_passed = check_contrasts_table_headers(
+                    dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during contrasts table headers check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_headers",
+                               "RED", f"Exception during check", str(e))
+
+            print("\nChecking contrasts table rows...")
+            try:
+                contrasts_rows_passed = check_contrasts_table_rows(
+                    dge_dir, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during contrasts table rows check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_rows",
+                               "RED", f"Exception during check", str(e))
         
         # Check DGE table annotation columns
         print("\nChecking DGE table annotation columns...")
