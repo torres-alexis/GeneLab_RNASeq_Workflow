@@ -2612,7 +2612,7 @@ def main():
         try:
             norm_counts_passed = check_deseq2_normcounts_existence(
                 norm_counts_dir, vv_log_path, final_suffix, args.mode,
-                require_unnorm=stratum in ("", "rRNArm"),
+                require_unnorm=args.mode == "microbes" and stratum in ("", "rRNArm"),
             )
         except Exception as e:
             print(f"Error during normalized counts check: {str(e)}")

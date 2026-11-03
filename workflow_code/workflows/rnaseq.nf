@@ -155,9 +155,10 @@ def dge_input(jobs, meta, annot, counts, rrna) {
 
 def publish_unnorm(name) {
     def suffix = java.util.regex.Pattern.quote(params.assay_suffix ?: "")
-    def matcher = name =~ "(?:RSEM|FeatureCounts)_Unnormalized_Counts(.*)${suffix}\\.csv"
+    def matcher = name =~ "(RSEM|FeatureCounts)_Unnormalized_Counts(.*)${suffix}\\.csv"
     if (!matcher.matches()) return true
-    return matcher.group(1) in ["", "_rRNArm"]
+    if (matcher.group(1) == "RSEM") return false
+    return matcher.group(2) in ["", "_rRNArm"]
 }
 
 def pub_dge(dge, root, side_tables=true) {
