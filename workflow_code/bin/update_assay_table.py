@@ -1427,6 +1427,8 @@ def add_differential_expression_column(df, glds_prefix, assay_suffix, outdir=Non
         ["SampleTable", "contrasts", "differential_expression"],
         assay_suffix,
     )
+    side = re.compile(rf"(?:SampleTable|contrasts)(?:_.*)?_rRNArm{re.escape(assay_suffix)}\.csv")
+    found = [fn for fn in found if not side.fullmatch(fn)]
     if not found:
         found = [
             f"SampleTable{assay_suffix}.csv",

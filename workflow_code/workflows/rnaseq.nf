@@ -153,12 +153,16 @@ def dge_input(jobs, meta, annot, counts, rrna) {
     }
 }
 
-def pub_dge(dge, root) {
-    return pub(dge.norm_counts, root, '04-DESeq2_NormCounts')
+def pub_dge(dge, root, side_tables=true) {
+    def published = pub(dge.norm_counts, root, '04-DESeq2_NormCounts')
         .mix(pub(dge.vst_norm_counts, root, '04-DESeq2_NormCounts'))
         .mix(pub(dge.dge_table, root, '05-DESeq2_DGE'))
-        .mix(pub(dge.contrasts, root, '05-DESeq2_DGE'))
-        .mix(pub(dge.sample_table, root, '05-DESeq2_DGE'))
+    if (side_tables) {
+        published = published
+            .mix(pub(dge.contrasts, root, '05-DESeq2_DGE'))
+            .mix(pub(dge.sample_table, root, '05-DESeq2_DGE'))
+    }
+    return published
 }
 
 def pub_vv(ch, root, name) {
@@ -664,7 +668,7 @@ workflow RNASEQ {
             }
             ch_published = ch_published
                 .mix( pub_dge(DGE_DESEQ2.out, ch_root) )
-                .mix( pub_dge(DGE_DESEQ2_RRNA_RM.out, ch_root) )
+                .mix( pub_dge(DGE_DESEQ2_RRNA_RM.out, ch_root, false) )
         }
 
         all_multiqc = raw_mqc_data

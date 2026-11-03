@@ -283,11 +283,13 @@ def check_deseq2_dge_existence(outdir, log_path, assay_suffix="_GLbulkRNAseq"):
         else:
             component = f"{component}_{stratum}"
     
-    expected_files = [
-        f"contrasts{assay_suffix}.csv",
-        f"differential_expression{assay_suffix}.csv",
-        f"SampleTable{assay_suffix}.csv"
-    ]
+    expected_files = [f"differential_expression{assay_suffix}.csv"]
+    if "_rRNArm" not in assay_suffix:
+        expected_files = [
+            f"contrasts{assay_suffix}.csv",
+            f"differential_expression{assay_suffix}.csv",
+            f"SampleTable{assay_suffix}.csv",
+        ]
     
     missing_files = []
     
@@ -2632,49 +2634,52 @@ def main():
             log_check_result(vv_log_path, "dge_DGE", "all", "check_deseq2_dge_existence", 
                            "RED", f"Exception during check", str(e))
         
-        # Check sample table against runsheet
-        print("\nChecking sample table against runsheet...")
-        try:
-            sample_table_passed = check_sample_table_against_runsheet(
-                dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during sample table check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_sample_table_against_runsheet", 
-                           "RED", f"Exception during check", str(e))
-        
-        # Check sample table for correct group assignments
-        print("\nChecking sample table for correct group assignments...")
-        try:
-            group_assignments_passed = check_sample_table_for_correct_group_assignments(
-                dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during group assignments check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_sample_table_for_correct_group_assignments", 
-                           "RED", f"Exception during check", str(e))
-        
-        # Check contrasts table headers
-        print("\nChecking contrasts table headers...")
-        try:
-            contrasts_headers_passed = check_contrasts_table_headers(
-                dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during contrasts table headers check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_headers", 
-                           "RED", f"Exception during check", str(e))
-        
-        # Check contrasts table rows
-        print("\nChecking contrasts table rows...")
-        try:
-            contrasts_rows_passed = check_contrasts_table_rows(
-                dge_dir, vv_log_path, final_suffix, factor_name, factor_value
-            )
-        except Exception as e:
-            print(f"Error during contrasts table rows check: {str(e)}")
-            log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_rows", 
-                           "RED", f"Exception during check", str(e))
+        # rRNArm publishes the DGE table only
+        if "rRNArm" in stratum:
+            sample_table_passed = True
+            group_assignments_passed = True
+            contrasts_headers_passed = True
+            contrasts_rows_passed = True
+        else:
+            print("\nChecking sample table against runsheet...")
+            try:
+                sample_table_passed = check_sample_table_against_runsheet(
+                    dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during sample table check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_sample_table_against_runsheet",
+                               "RED", f"Exception during check", str(e))
+
+            print("\nChecking sample table for correct group assignments...")
+            try:
+                group_assignments_passed = check_sample_table_for_correct_group_assignments(
+                    dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during group assignments check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_sample_table_for_correct_group_assignments",
+                               "RED", f"Exception during check", str(e))
+
+            print("\nChecking contrasts table headers...")
+            try:
+                contrasts_headers_passed = check_contrasts_table_headers(
+                    dge_dir, args.runsheet, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during contrasts table headers check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_headers",
+                               "RED", f"Exception during check", str(e))
+
+            print("\nChecking contrasts table rows...")
+            try:
+                contrasts_rows_passed = check_contrasts_table_rows(
+                    dge_dir, vv_log_path, final_suffix, factor_name, factor_value
+                )
+            except Exception as e:
+                print(f"Error during contrasts table rows check: {str(e)}")
+                log_check_result(vv_log_path, "dge", "all", "check_contrasts_table_rows",
+                               "RED", f"Exception during check", str(e))
         
         # Check DGE table annotation columns
         print("\nChecking DGE table annotation columns...")
