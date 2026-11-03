@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enable scratch staging for Slurm and PBS Pro processes.
 - Use the configured DESeq2 backend for the LRT step.
 - Update the `dp_tools` image to `1.3.8-slim`.
-- Normalize merged-sequence assay fields.
+- Normalize merged-sequence assay fields and remove empty ontology-column pairs.
 - Stop generating unused rRNA-removal summary files.
 
 ### Fixed
