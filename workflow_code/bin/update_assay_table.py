@@ -1616,6 +1616,34 @@ def normalize_assay_table_fields(df):
     
     return df
 
+def _column_base_name(name):
+    return re.sub(r'\.\d+$', '', str(name)).strip().lower()
+
+def _series_blank(series):
+    values = series.astype("string").str.strip()
+    return bool((values.isna() | values.eq("")).all())
+
+def drop_empty_term_columns(df):
+    """Drop blank Term Source REF / Term Accession Number pairs."""
+    cols = list(df.columns)
+    drop_idx = []
+    i = 0
+    while i < len(cols) - 1:
+        src = _column_base_name(cols[i])
+        acc = _column_base_name(cols[i + 1])
+        if src == "term source ref" and acc == "term accession number":
+            if _series_blank(df.iloc[:, i]) and _series_blank(df.iloc[:, i + 1]):
+                drop_idx.extend([i, i + 1])
+                column_changes.append(f"Removed: {cols[i]} and {cols[i + 1]} (empty)")
+            i += 2
+            continue
+        i += 1
+    if not drop_idx:
+        return df
+    keep = [j for j in range(len(cols)) if j not in set(drop_idx)]
+    print(f"Removed {len(drop_idx) // 2} empty Term Source REF / Term Accession Number pair(s)")
+    return df.iloc[:, keep].copy()
+
 def clean_column_names(df):
     """Clean column names by removing any .# suffixes pandas adds to duplicates.
     
@@ -1769,6 +1797,9 @@ def main():
         
         # Clean comma-space in all string columns
         assay_df = clean_comma_space(assay_df)
+
+        # Drop blank Term Source REF / Term Accession Number pairs
+        assay_df = drop_empty_term_columns(assay_df)
         
         # Clean column names by removing any .# suffixes pandas adds
         assay_df = clean_column_names(assay_df)

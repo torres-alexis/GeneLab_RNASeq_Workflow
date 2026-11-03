@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - STAR alignment no longer sorts the BAM (`*_Aligned.sortedByCoord.out.bam` → `*_Aligned.out.bam`). Samtools still sorts and indexes the published genome BAM (`*_Aligned.sortedByCoord_sorted.out.bam` + `.bai`).
 - Rename `FETCH_ANNOTATIONS_CSV` to `FETCH_ANNOTATIONS_TABLE`.
 - Bowtie2 writes SAM. `SAM_TO_BAM` converts it and drops unmapped reads before the sort. Drop the bowtie2+samtools mulled image.
+- Drop blank term columns from the assay table.
 
 ### Fixed
 
