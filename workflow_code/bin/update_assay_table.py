@@ -1396,13 +1396,64 @@ def prefix_glds(glds_prefix, filenames):
     return [fn if fn.startswith(glds_prefix) else f"{glds_prefix}{fn}" for fn in filenames]
 
 
-def add_normalized_counts_data_column(df, glds_prefix, assay_suffix, outdir=None):
+def organism_part_by_sample(runsheet_df):
+    if runsheet_df is None or "Sample Name" not in runsheet_df.columns:
+        return None
+    col = next((c for c in runsheet_df.columns if str(c).strip().lower() == "factor value[organism part]"), None)
+    if col is None:
+        return None
+    parts = {}
+    for sample, part in zip(runsheet_df["Sample Name"], runsheet_df[col]):
+        key = sample_key(sample)
+        if key:
+            parts[key] = str(part).strip().replace(" ", "_")
+    return parts
+
+
+def filename_organism_part(fn, prefixes, assay_suffix):
+    tail = f"{assay_suffix}.csv"
+    if not fn.endswith(tail):
+        return ""
+    for prefix in sorted(prefixes, key=len, reverse=True):
+        if not fn.startswith(prefix):
+            continue
+        mid = fn[len(prefix):-len(tail)]
+        if mid in ("", "_rRNArm"):
+            return ""
+        if mid.endswith("_rRNArm"):
+            return mid[1:-len("_rRNArm")]
+        if mid.startswith("_"):
+            return mid[1:]
+        return ""
+    return ""
+
+
+def files_by_sample_part(df, filenames, prefixes, assay_suffix, glds_prefix, runsheet_df):
+    named = prefix_glds(glds_prefix, filenames)
+    parts = organism_part_by_sample(runsheet_df)
+    sample_col = next((col for col in df.columns if "Sample Name" in col), None)
+    if parts is None or sample_col is None:
+        return ",".join(named)
+    rows = []
+    for sample in df[sample_col]:
+        sample_part = parts.get(sample_key(sample), "")
+        keep = []
+        for fn, display in zip(filenames, named):
+            part = filename_organism_part(fn, prefixes, assay_suffix)
+            if not part or part == sample_part:
+                keep.append(display)
+        rows.append(",".join(keep))
+    return rows
+
+
+def add_normalized_counts_data_column(df, glds_prefix, assay_suffix, outdir=None, runsheet_df=None):
     """Add the Normalized Counts Data column to the dataframe."""
     column_name = "Parameter Value[Normalized Counts Data]"
     alternative_names = []
 
+    prefixes = ["Normalized_Counts", "VST_Counts"]
     found = find_published_csvs(
-        outdir, "04-DESeq2_NormCounts", ["Normalized_Counts", "VST_Counts"], assay_suffix
+        outdir, "04-DESeq2_NormCounts", prefixes, assay_suffix
     )
     if not found:
         found = [
@@ -1412,19 +1463,20 @@ def add_normalized_counts_data_column(df, glds_prefix, assay_suffix, outdir=None
             f"VST_Counts_rRNArm{assay_suffix}.csv",
         ]
 
-    combined_files = ",".join(prefix_glds(glds_prefix, found))
-    df = update_column(df, column_name, combined_files, alternative_names)
+    values = files_by_sample_part(df, found, prefixes, assay_suffix, glds_prefix, runsheet_df)
+    df = update_column(df, column_name, values, alternative_names)
     return df
 
-def add_differential_expression_column(df, glds_prefix, assay_suffix, outdir=None):
+def add_differential_expression_column(df, glds_prefix, assay_suffix, outdir=None, runsheet_df=None):
     """Add the Differential Expression Analysis Data column to the dataframe."""
     column_name = "Parameter Value[Differential Expression Analysis Data]"
     alternative_names = []
 
+    prefixes = ["SampleTable", "contrasts", "differential_expression"]
     found = find_published_csvs(
         outdir,
         "05-DESeq2_DGE",
-        ["SampleTable", "contrasts", "differential_expression"],
+        prefixes,
         assay_suffix,
     )
     side = re.compile(rf"(?:SampleTable|contrasts)(?:_.*)?_rRNArm{re.escape(assay_suffix)}\.csv")
@@ -1437,8 +1489,8 @@ def add_differential_expression_column(df, glds_prefix, assay_suffix, outdir=Non
             f"differential_expression_rRNArm{assay_suffix}.csv",
         ]
 
-    combined_files = ",".join(prefix_glds(glds_prefix, found))
-    df = update_column(df, column_name, combined_files, alternative_names)
+    values = files_by_sample_part(df, found, prefixes, assay_suffix, glds_prefix, runsheet_df)
+    df = update_column(df, column_name, values, alternative_names)
     return df
 
 def add_aligned_sequence_data_column(df, glds_prefix, assay_suffix, runsheet_df=None, mode=""):
@@ -1774,7 +1826,7 @@ def main():
         print("\n=== PROCESSING NORMALIZED COUNTS DATA SECTION ===")
         
         # Add Normalized Counts Data column
-        assay_df = add_normalized_counts_data_column(assay_df, glds_prefix, args.assay_suffix, args.outdir)
+        assay_df = add_normalized_counts_data_column(assay_df, glds_prefix, args.assay_suffix, args.outdir, runsheet_df)
         
         # =====================================================
         # SECTION 7: DIFFERENTIAL EXPRESSION
@@ -1782,7 +1834,7 @@ def main():
         print("\n=== PROCESSING DIFFERENTIAL EXPRESSION SECTION ===")
         
         # Add Differential Expression Analysis Data column
-        assay_df = add_differential_expression_column(assay_df, glds_prefix, args.assay_suffix, args.outdir)
+        assay_df = add_differential_expression_column(assay_df, glds_prefix, args.assay_suffix, args.outdir, runsheet_df)
         
         # =====================================================
         # SECTION 8: ERCC ANALYSIS (CONDITIONAL)
