@@ -14,9 +14,14 @@ process ANNOTATE_DGE_TABLE {
         def output_filename_suffix = params.assay_suffix ?: ""
 
         """
+        if [[ -s "${gene_annotations}" ]]; then
+            ANNOT_ARG="${gene_annotations}"
+        else
+            ANNOT_ARG=""
+        fi
         annotate_dge_table.R \
             '1.csv' \
-            '${gene_annotations}' \
+            "\${ANNOT_ARG}" \
             '${meta.gene_id_type}' \
             'differential_expression${output_filename_suffix}.csv'
 

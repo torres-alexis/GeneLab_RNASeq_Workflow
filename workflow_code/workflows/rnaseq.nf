@@ -264,7 +264,8 @@ workflow RNASEQ {
         FETCH_GENE_ANNOTATIONS( ch_annot.remote.map { rewrite_figshare(it) } )
         gene_annotations = FETCH_GENE_ANNOTATIONS.out.table
             .mix( ch_annot.local.map { p -> file(p) } )
-            .mix( ch_annot.skip.map { [] } )
+            .mix( ch_annot.skip.map { file("${projectDir}/assets/empty") } )
+            .first()
 
         if ( params.reference_fasta && params.reference_gtf ) {
             channel.value( params.reference_source ) | set { reference_source }
