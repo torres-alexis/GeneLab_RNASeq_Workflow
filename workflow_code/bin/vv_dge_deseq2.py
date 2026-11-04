@@ -231,24 +231,26 @@ def check_deseq2_normcounts_existence(outdir, log_path, assay_suffix="_GLbulkRNA
         else:
             component = f"{component}_{stratum}"
     
-    # Set the unnormalized counts filename based on mode
+    # Unnormalized tables are in the counts directory. Normalized and VST stay here.
+    counts_root = os.path.dirname(outdir)
     if mode == "microbes":
+        unnorm_dir = os.path.join(counts_root, "03-FeatureCounts")
         unnorm_file = f"FeatureCounts_Unnormalized_Counts{assay_suffix}.csv"
     else:
+        unnorm_dir = os.path.join(counts_root, "03-RSEM_Counts")
         unnorm_file = f"RSEM_Unnormalized_Counts{assay_suffix}.csv"
-    
-    # List of expected files
+
     expected_files = [
-        f"Normalized_Counts{assay_suffix}.csv",
-        f"VST_Counts{assay_suffix}.csv"
+        (outdir, f"Normalized_Counts{assay_suffix}.csv"),
+        (outdir, f"VST_Counts{assay_suffix}.csv"),
     ]
     if require_unnorm:
-        expected_files.insert(0, unnorm_file)
-    
+        expected_files.insert(0, (unnorm_dir, unnorm_file))
+
     missing_files = []
-    
-    for file in expected_files:
-        file_path = os.path.join(outdir, file)
+
+    for directory, file in expected_files:
+        file_path = os.path.join(directory, file)
         if not os.path.exists(file_path):
             missing_files.append(file_path)
     
@@ -2424,7 +2426,7 @@ def check_dge_table_log2fc_within_reason(outdir, runsheet_path, log_path, assay_
                         "Error checking log2fc reasonableness", f"{str(e)}\n{error_details}")
         return False
 
-def check_ercc_presence(outdir, runsheet_path, log_path, assay_suffix="_GLbulkRNAseq", mode="default"):
+def check_ercc_presence(outdir, runsheet_path, log_path, assay_suffix="_GLbulkRNAseq", mode="default", unnorm_suffix=None):
     """Check for the presence/absence of ERCC spike-ins in count matrices.
     
     If the runsheet indicates has_ercc=True, this function verifies:
@@ -2476,12 +2478,20 @@ def check_ercc_presence(outdir, runsheet_path, log_path, assay_suffix="_GLbulkRN
                            "ERCC spike-in check skipped", "No has_ercc=True found in runsheet")
             return True
         
-        # Set the unnormalized counts file based on mode
+        # Unnormalized tables publish to the counts directory. Normalized and VST stay in outdir.
+        counts_root = os.path.dirname(outdir)
+        unnorm_name_suffix = assay_suffix if unnorm_suffix is None else unnorm_suffix
         if mode == "microbes":
-            unnorm_path = os.path.join(outdir, f"FeatureCounts_Unnormalized_Counts{assay_suffix}.csv")
+            unnorm_path = os.path.join(
+                counts_root, "03-FeatureCounts",
+                f"FeatureCounts_Unnormalized_Counts{unnorm_name_suffix}.csv",
+            )
         else:
-            unnorm_path = os.path.join(outdir, f"RSEM_Unnormalized_Counts{assay_suffix}.csv")
-            
+            unnorm_path = os.path.join(
+                counts_root, "03-RSEM_Counts",
+                f"RSEM_Unnormalized_Counts{unnorm_name_suffix}.csv",
+            )
+
         norm_path = os.path.join(outdir, f"Normalized_Counts{assay_suffix}.csv")
         vst_norm_path = os.path.join(outdir, f"VST_Counts{assay_suffix}.csv")
         
@@ -2612,7 +2622,7 @@ def main():
         try:
             norm_counts_passed = check_deseq2_normcounts_existence(
                 norm_counts_dir, vv_log_path, final_suffix, args.mode,
-                require_unnorm=args.mode == "microbes" and stratum in ("", "rRNArm"),
+                require_unnorm=stratum in ("", "rRNArm"),
             )
         except Exception as e:
             print(f"Error during normalized counts check: {str(e)}")
@@ -2622,7 +2632,10 @@ def main():
         # Check ERCC spike-ins if applicable
         print("\nChecking ERCC spike-ins...")
         try:
-            ercc_passed = check_ercc_presence(norm_counts_dir, args.runsheet, vv_log_path, final_suffix, args.mode)
+            unnorm_suffix = dge_file_suffix(args.assay_suffix, "rRNArm" if "rRNArm" in stratum else "")
+            ercc_passed = check_ercc_presence(
+                norm_counts_dir, args.runsheet, vv_log_path, final_suffix, args.mode, unnorm_suffix
+            )
         except Exception as e:
             print(f"Error during ERCC spike-in check: {str(e)}")
             log_check_result(vv_log_path, "dge_NormCounts", "all", "check_ercc_presence", 

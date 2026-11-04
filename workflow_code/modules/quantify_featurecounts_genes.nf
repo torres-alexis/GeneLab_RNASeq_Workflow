@@ -8,6 +8,7 @@ process QUANTIFY_FEATURECOUNTS_GENES {
 
   output:
     path("NumNonZeroGenes${params.assay_suffix}.csv"), emit: num_non_zero_genes
+    path("FeatureCounts_Unnormalized_Counts${params.assay_suffix}.csv"), emit: unnorm_counts
 
   script:
     """

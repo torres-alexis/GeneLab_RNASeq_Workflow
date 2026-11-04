@@ -39,6 +39,8 @@ include { EXTRACT_RRNA } from '../modules/extract_rrna.nf'
 include { REMOVE_RRNA } from '../modules/remove_rrna.nf'
 include { REMOVE_RRNA_FEATURECOUNTS } from '../modules/remove_rrna_featurecounts.nf'
 include { REMOVE_RRNA_COUNTS_TABLE } from '../modules/remove_rrna_counts_table.nf'
+include { REMOVE_RRNA_COUNTS_TABLE as REMOVE_RRNA_RSEM_TABLE } from '../modules/remove_rrna_counts_table.nf'
+include { REMOVE_RRNA_COUNTS_TABLE as REMOVE_RRNA_FC_TABLE } from '../modules/remove_rrna_counts_table.nf'
 include { DGE_DESEQ2 } from '../modules/dge_deseq2.nf'
 include { DGE_DESEQ2 as DGE_DESEQ2_RRNA_RM } from '../modules/dge_deseq2.nf'
 include { SPLIT_ORGANISM_PART_RUNSHEETS } from '../modules/split_organism_part_runsheets.nf'
@@ -156,9 +158,7 @@ def dge_input(jobs, meta, annot, counts, rrna) {
 def publish_unnorm(name) {
     def suffix = java.util.regex.Pattern.quote(params.assay_suffix ?: "")
     def matcher = name =~ "(RSEM|FeatureCounts)_Unnormalized_Counts(.*)${suffix}\\.csv"
-    if (!matcher.matches()) return true
-    if (matcher.group(1) == "RSEM") return false
-    return matcher.group(2) in ["", "_rRNArm"]
+    return !matcher.matches()
 }
 
 def pub_dge(dge, root, side_tables=true) {
@@ -607,6 +607,7 @@ workflow RNASEQ {
                 .mix( pub(FEATURECOUNTS.out.counts, ch_root, '03-FeatureCounts') )
                 .mix( pub(FEATURECOUNTS.out.summary, ch_root, '03-FeatureCounts') )
                 .mix( pub(QUANTIFY_FEATURECOUNTS_GENES.out.num_non_zero_genes, ch_root, '03-FeatureCounts') )
+                .mix( pub(QUANTIFY_FEATURECOUNTS_GENES.out.unnorm_counts, ch_root, '03-FeatureCounts') )
                 .mix( pub_mqc(COUNT_MULTIQC.out, ch_root, '03-FeatureCounts/MultiQC_Reports') )
         }
 
@@ -661,13 +662,25 @@ workflow RNASEQ {
                 REMOVE_RRNA_FEATURECOUNTS( counts, EXTRACT_RRNA.out.rrna_ids )
                 counts_rrnarm = REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm
                 DGE_DESEQ2_RRNA_RM( dge_input(ch_dge_jobs, ch_meta, gene_annotations, counts_rrnarm, true), dge_rmd )
-                ch_published = ch_published.mix( pub(REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
+                REMOVE_RRNA_FC_TABLE(
+                    QUANTIFY_FEATURECOUNTS_GENES.out.unnorm_counts,
+                    EXTRACT_RRNA.out.rrna_ids
+                )
+                ch_published = ch_published
+                    .mix( pub(REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
+                    .mix( pub(REMOVE_RRNA_FC_TABLE.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
             } else {
                 DGE_DESEQ2( dge_input(ch_dge_jobs, ch_meta, gene_annotations, genes_results.map { row -> row[1] } | collect, false), dge_rmd )
                 REMOVE_RRNA( EXTRACT_RRNA.out.rrna_ids, genes_results )
                 counts_rrnarm = REMOVE_RRNA.out.genes_results_rrnarm.map { row -> as_list(row)[1] } | toSortedList
                 DGE_DESEQ2_RRNA_RM( dge_input(ch_dge_jobs, ch_meta, gene_annotations, counts_rrnarm, true), dge_rmd )
-                ch_published = ch_published.mix( pub_by_meta(REMOVE_RRNA.out.genes_results_rrnarm, ch_root, '03-RSEM_Counts') )
+                REMOVE_RRNA_RSEM_TABLE(
+                    QUANTIFY_RSEM_GENES.out.publishables.map { unnorm, _nz -> unnorm },
+                    EXTRACT_RRNA.out.rrna_ids
+                )
+                ch_published = ch_published
+                    .mix( pub_by_meta(REMOVE_RRNA.out.genes_results_rrnarm, ch_root, '03-RSEM_Counts') )
+                    .mix( pub(REMOVE_RRNA_RSEM_TABLE.out.counts_rrnarm, ch_root, '03-RSEM_Counts') )
             }
 
             dge_table = DGE_DESEQ2.out.dge_table
