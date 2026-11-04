@@ -36,6 +36,11 @@ process DGE_DESEQ2 {
             mkdir -p gene_counts
             mv ${gene_counts} gene_counts/
         fi
+        if [[ -s "${gene_annotations.toString()}" ]]; then
+            ANNOT_ARG="${gene_annotations.toString()}"
+        else
+            ANNOT_ARG=""
+        fi
         Rscript -e "rmarkdown::render('dge_deseq2.Rmd',
             output_file = 'DGE_DESeq2.html',
             output_dir = '\${PWD}',
@@ -46,7 +51,7 @@ process DGE_DESEQ2 {
                 output_directory = '\${PWD}',
                 output_filename_label = '${output_filename_label}',
                 output_filename_suffix = '${output_filename_suffix}',
-                annotation_file_path = '${gene_annotations}',
+                annotation_file_path = '\${ANNOT_ARG}',
                 runsheet_path = '${runsheet_path}',
                 microbes = ${microbes},
                 gene_id_type = '${meta.gene_id_type}',

@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use the resolved output directory for validation and post-processing.
 - Support single-sample FeatureCounts output tables.
 - Validate FeatureCounts nonzero-gene reports and rRNA-removed count tables.
+- Allow annotation processing to continue when no gene annotation file is supplied or the file is empty.
 - Prevent reference version-report files from overwriting each other.
 - Correct rendered protocol version links and ERCC count-axis labels.
 
