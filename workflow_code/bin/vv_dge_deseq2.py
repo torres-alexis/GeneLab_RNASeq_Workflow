@@ -345,6 +345,11 @@ def dge_file_suffix(assay_suffix, stratum=""):
     return assay_suffix
 
 
+def side_table_suffix(assay_suffix):
+    # rRNArm reuses the base or organism-part SampleTable and contrasts.
+    return assay_suffix.replace("_rRNArm", "", 1)
+
+
 def log2fc_flag_csv_name(assay_suffix):
     return f"log2fc_flag_characterization{assay_suffix}.csv"
 
@@ -457,7 +462,7 @@ def check_sample_table_against_runsheet(outdir, runsheet_path, log_path, assay_s
         check_suffix = ""
         component_name = component
     
-    sample_table_path = os.path.join(outdir, f"SampleTable{assay_suffix}.csv")
+    sample_table_path = os.path.join(outdir, f"SampleTable{side_table_suffix(assay_suffix)}.csv")
     
     # Check if sample table exists
     if not os.path.exists(sample_table_path):
@@ -549,7 +554,7 @@ def check_sample_table_for_correct_group_assignments(outdir, runsheet_path, log_
         check_suffix = ""
         component_name = component
     
-    sample_table_path = os.path.join(outdir, f"SampleTable{assay_suffix}.csv")
+    sample_table_path = os.path.join(outdir, f"SampleTable{side_table_suffix(assay_suffix)}.csv")
     
     # Check if sample table exists
     if not os.path.exists(sample_table_path):
@@ -898,7 +903,7 @@ def check_contrasts_table_headers(outdir, runsheet_path, log_path, assay_suffix=
         component_name = component
     
     # Look for contrasts table with the correct filename pattern
-    contrasts_table_path = os.path.join(outdir, f"contrasts{assay_suffix}.csv")
+    contrasts_table_path = os.path.join(outdir, f"contrasts{side_table_suffix(assay_suffix)}.csv")
     
     # Check if contrasts table exists
     if not os.path.exists(contrasts_table_path):
@@ -1010,7 +1015,7 @@ def check_contrasts_table_rows(outdir, log_path, assay_suffix="_GLbulkRNAseq",
         component_name = component
     
     # Look for contrasts table with the correct filename pattern
-    contrasts_table_path = os.path.join(outdir, f"contrasts{assay_suffix}.csv")
+    contrasts_table_path = os.path.join(outdir, f"contrasts{side_table_suffix(assay_suffix)}.csv")
     
     # Check if contrasts table exists
     if not os.path.exists(contrasts_table_path):
@@ -1682,8 +1687,8 @@ def check_dge_table_group_columns_constraints(outdir, runsheet_path, log_path, a
     # Get group information
     try:
         # Read sample table to get group assignments
-        sample_table_path = os.path.join(outdir, f"SampleTable{assay_suffix}.csv") 
-        
+        sample_table_path = os.path.join(outdir, f"SampleTable{side_table_suffix(assay_suffix)}.csv")
+
         if not os.path.exists(sample_table_path):
             log_check_result(log_path, component_name, "all", check_name, "HALT", 
                            "Sample table not found", 
