@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Drop the Mozilla/5.0 user agent from Figshare annotation downloads to prevent a 403 error.
 - Use the resolved output directory for validation and post-processing.
 
 - Fixed wording in Dummy DGE debug log and param description.

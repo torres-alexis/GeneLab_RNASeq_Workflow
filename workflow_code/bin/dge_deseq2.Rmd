@@ -590,13 +590,11 @@ if (!is.null(annotation_file_path) && annotation_file_path != "" && annotation_f
     # Download or read annotation file
     tryCatch({
         if (startsWith(annotation_file_path, "http")) {
-            # Download with user-agent
             local_file <- "gene_annotations.tsv"
             print(sprintf("DEBUG: %s: Downloading annotation file from %s", Sys.time(), annotation_file_path))
             download.file(url = annotation_file_path, 
                          destfile = local_file, 
-                         method = "libcurl", 
-                         headers = c("User-Agent" = "Mozilla/5.0"))
+                         method = "libcurl")
             annot <- read.table(local_file, sep = "\t", header = TRUE, quote = "", comment.char = "")
         } else {
             # Local file
