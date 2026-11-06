@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use the Biological Data API for accession lookup.
 - Clean up ERCC notebook and fix count-axis labels.
 - Condensed the Nextflow mode and entry point subworkflows into `rnaseq.nf`.
 - Require Nextflow 26.04 or later.
