@@ -105,7 +105,7 @@ def generate_protocol_content(args, software_versions):
         header += "(https://github.com/nasa/GeneLab_Data_Processing/blob/master/RNAseq/Pipeline_GL-DPPD-7101_Versions/GL-DPPD-7101-G.md), "
     
     header += f"using NF_RCP version {args.workflow_version} "
-    header += f"(https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_{args.workflow_version}). "
+    header += f"(https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/v{args.workflow_version}). "
     
     # Start building the description as a single paragraph
     # Add processing description with software versions

@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support single-sample FeatureCounts output tables.
 - Validate FeatureCounts nonzero-gene reports and rRNA-removed count tables.
 - Prevent reference version-report files from overwriting each other.
-- Correct ERCC count-axis labels.
+- Correct rendered protocol version links and ERCC count-axis labels.
 
 ## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.1.0) - 2025-12-09
 
