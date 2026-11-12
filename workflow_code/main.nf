@@ -37,6 +37,9 @@ Workflow Version: ${workflow.manifest.version}
 }
 
 workflow {
+    if (params.help || params.helpFull) {
+        exit 0
+    }
     if (params.stage_only && params.post_processing) {
         error "Specify only one of --stage_only or --post_processing"
     }
