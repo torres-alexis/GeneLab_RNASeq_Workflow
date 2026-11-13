@@ -76,7 +76,6 @@ workflow STAGE_ONLY {
         )
         PUBLISH_STAGED_ANALYSIS(
             STAGE.out.ch_outdir,
-            STAGE.out.runsheet_path,
             STAGE.out.raw_reads.map { sample -> sample[1] }.collect()
         )
 }

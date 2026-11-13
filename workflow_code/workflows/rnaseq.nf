@@ -441,7 +441,7 @@ workflow RNASEQ {
                 ch_outdir,
                 osd_accession,
                 ch_meta,
-                isa_archive.ifEmpty(file("ISA.zip")),
+                isa_archive.ifEmpty { [] },
                 all_multiqc,
                 qc_counts,
                 runsheet_path

@@ -1,3 +1,4 @@
+include { PUBLISH_METADATA } from '../modules/publish_metadata.nf'
 include { PARSE_RUNSHEET } from './parse_runsheet.nf'
 include { FETCH_ISA } from '../modules/fetch_isa.nf'
 include { ISA_TO_RUNSHEET } from '../modules/isa_to_runsheet.nf'
@@ -207,6 +208,8 @@ workflow STAGE {
             COPY_DGE_TABLE(ch_outdir, PARSE_RUNSHEET.out.table)
             dge_table = COPY_DGE_TABLE.out.dge_table
         }
+
+        PUBLISH_METADATA( ch_outdir, runsheet_path, isa_archive.ifEmpty { [] } )
 
     emit:
         ch_outdir       = ch_outdir
