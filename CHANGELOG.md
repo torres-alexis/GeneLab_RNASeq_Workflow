@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Publish the runsheet and available ISA archive once for every entry point.
+- Support single-sample FeatureCounts output tables.
 - Validate FeatureCounts nonzero-gene reports and rRNA-removed count tables.
 - Prevent reference version-report files from overwriting each other.
 - Correct ERCC count-axis labels.

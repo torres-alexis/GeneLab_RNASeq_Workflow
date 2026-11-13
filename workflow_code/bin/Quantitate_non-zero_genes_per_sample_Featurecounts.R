@@ -64,7 +64,7 @@ tryCatch({
 
 # Remove metadata columns if they exist
 metadata_cols <- c("Chr", "Start", "End", "Strand", "Length")
-data <- data[, !colnames(data) %in% metadata_cols]
+data <- data[, !colnames(data) %in% metadata_cols, drop = FALSE]
 
 # Clean column names: remove path, .bam extension
 colnames(data) <- gsub("^.*/([^/]+)\\.bam$", "\\1", colnames(data))
