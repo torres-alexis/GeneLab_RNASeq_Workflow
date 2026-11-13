@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Infer strandedness from genomic BAMs at BAM entry; default mode pairs them with transcriptome BAMs.
 - Add `--dge_parallel_config` and `--dge_parallel_cores` for DESeq2.
 - Add PBS Pro and Podman profiles.
 - Support local and mixed local/remote FASTA and GTF references.
@@ -19,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Require Nextflow 26.04 or later.
 - Replace `-entry STAGE_ONLY` and `-entry POST_PROCESSING` with `--stage_only` and `--post_processing`. Stage-only supports every entry point.
-- Default `--strandedness` to `auto`; BAM entry requires `none`, `forward` or `reverse`.
+- Default `--strandedness` to `auto`; default-mode BAM entry requires a paired genomic BAM or explicit strandedness.
 - Use the Biological Data API for accession lookup.
 - Resolve OSDR input URLs for the selected entry point, including older published filenames.
 - Fetch remote inputs and annotations in worker processes. Apply `truncate_to` to raw and trimmed reads there.
@@ -27,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exclude samples with at least 60% RSEM unalignable reads before DGE by default for raw-read, trimmed-read and BAM entry points in default mode. Configure with `--drop_unalignable` and `--unalignable_threshold`.
 - Publish unnormalized counts in the RSEM or FeatureCounts `03` directory, and normalized/VST counts in `04`.
 - Publish standard SampleTable and contrasts files only; reuse them for rRNA-removed DGE validation.
-- Have STAR emit `*_Aligned.out.bam`. Convert Bowtie2 SAM to BAM in a separate step before sorting.
+- Have `ALIGN_STAR` emit `*_Aligned.out.bam`. Convert Bowtie2 SAM to BAM in a separate step before sorting.
 - Run FASTQ validation per file and raw/processed checksum generation in parallel.
 - Update process resource allocations and walltimes. Leave local walltime unset and cap PBS Pro tasks at eight hours.
 - Enable scratch staging for Slurm and PBS Pro processes.

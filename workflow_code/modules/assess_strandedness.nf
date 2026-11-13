@@ -9,12 +9,12 @@ process ASSESS_STRANDEDNESS {
 
   script:
     """
-    assess_strandedness.py infer_out
+    assess_strandedness.py infer_out ${params.entry_point == 'bam_files' && params.strandedness == 'auto' ? '--strict' : ''}
     """
 
   stub:
     """
-    assess_strandedness.py infer_out
+    assess_strandedness.py infer_out ${params.entry_point == 'bam_files' && params.strandedness == 'auto' ? '--strict' : ''}
     echo "unstranded:0.48595" > result.txt # override original results, this is because heavy truncation and genome subsampling can result in an ambiguous strand assignment, which normally is an issue, but should be ignore for stubruns
     """
 }

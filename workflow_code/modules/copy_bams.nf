@@ -8,7 +8,7 @@ process COPY_BAMS {
         tuple val(meta), path("${meta.id}*.bam"), emit: bam_files
 
     script:
-        def bam_name = params.mode == "microbes" ? 
+        def bam_name = meta.genome_bam ? "${meta.id}${params.assay_suffix}_Aligned.out.bam" : params.mode == "microbes" ?
             "${meta.id}${params.assay_suffix}.bam" :
             "${meta.id}${params.assay_suffix}_Aligned.toTranscriptome.out.bam"
         """

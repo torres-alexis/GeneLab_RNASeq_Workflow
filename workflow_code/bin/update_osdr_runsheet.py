@@ -61,6 +61,20 @@ def resolve_bam(mapping, glds, sample, mode, suffix):
     _die(f"Could not find BAM file for {sample} in file list")
 
 
+def resolve_bam_pair(mapping, glds, sample, suffix):
+    pairs = []
+    for candidate in suffixes(suffix):
+        prefix = f"{glds}_rna_seq_{sample}{candidate}"
+        counting = mapping.get(prefix + "_Aligned.toTranscriptome.out.bam")
+        for ending in ("_Aligned.sortedByCoord_sorted.out.bam", "_Aligned.sortedByCoord.out.bam", "_Aligned.out.bam"):
+            genome = mapping.get(prefix + ending)
+            if counting and genome:
+                pairs.append({"bam_path": counting, "genome_bam_path": genome})
+    if len(pairs) != 1:
+        _die(f"BAM auto strandedness for {sample} needs one unambiguous transcriptome/genome pair; found {len(pairs)}. Supply paired runsheet paths or explicit --strandedness.")
+    return pairs[0]
+
+
 def resolve_genes(mapping, glds, sample, suffix):
     for candidate in suffixes(suffix):
         url = mapping.get(f"{glds}_rna_seq_{sample}{candidate}.genes.results")
@@ -86,7 +100,7 @@ def resolve_dge(mapping, glds, suffix):
     _die("Could not find differential expression table in file list")
 
 
-def update_runsheet(rows, fieldnames, *, mapping, glds, entry_point, mode, assay_suffix):
+def update_runsheet(rows, fieldnames, *, mapping, glds, entry_point, mode, assay_suffix, strandedness="none"):
     extra = []
     if entry_point == "trimmed_reads":
         extra = ["trimmed_read1_path", "trimmed_read2_path"]
@@ -95,8 +109,13 @@ def update_runsheet(rows, fieldnames, *, mapping, glds, entry_point, mode, assay
             row.update(resolve_trimmed(mapping, glds, sample, _truthy(row.get("paired_end")), assay_suffix))
     elif entry_point == "bam_files":
         extra = ["bam_path"]
+        if mode != "microbes" and strandedness == "auto":
+            extra.append("genome_bam_path")
         for row in rows:
-            row.update(resolve_bam(mapping, glds, row["Sample Name"], mode, assay_suffix))
+            if mode != "microbes" and strandedness == "auto":
+                row.update(resolve_bam_pair(mapping, glds, row["Sample Name"], assay_suffix))
+            else:
+                row.update(resolve_bam(mapping, glds, row["Sample Name"], mode, assay_suffix))
     elif entry_point == "genes_results":
         extra = ["genes_results_path"]
         for row in rows:
@@ -123,6 +142,7 @@ def main(argv=None):
     p.add_argument("--entry-point", required=True, choices=["trimmed_reads", "bam_files", "genes_results", "counts_table", "dge_table"])
     p.add_argument("--mode", default="default", choices=["default", "microbes"])
     p.add_argument("--assay-suffix", default="")
+    p.add_argument("--strandedness", default="none", choices=["auto", "none", "forward", "reverse"])
     p.add_argument("--out", required=True, type=Path)
     args = p.parse_args(argv)
 
@@ -140,6 +160,7 @@ def main(argv=None):
         entry_point=args.entry_point,
         mode=args.mode,
         assay_suffix=args.assay_suffix,
+        strandedness=args.strandedness,
     )
     with args.out.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames, extrasaction="ignore")

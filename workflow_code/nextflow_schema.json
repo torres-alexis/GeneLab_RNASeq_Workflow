@@ -197,7 +197,7 @@
         "strandedness": {
           "type": "string",
           "default": "auto",
-          "description": "auto = infer strandedness from RSeQC infer_experiment. none/forward/reverse overrides RSeQC output. Required, no auto for params.entry_point=bam_files.",
+          "description": "auto = infer strandedness from RSeQC infer_experiment. none/forward/reverse overrides RSeQC output. Default-mode BAM auto also requires a matching genome_bam_path; microbes reuse bam_path.",
           "enum": ["auto", "none", "forward", "reverse"]
         },
         "counts_table_path": {

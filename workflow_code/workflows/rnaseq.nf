@@ -33,6 +33,7 @@ include { QUANTIFY_FEATURECOUNTS_GENES } from '../modules/quantify_featurecounts
 include { SORT_AND_INDEX_BAM } from '../modules/sort_and_index_bam.nf'
 
 include { INFER_EXPERIMENT; GENEBODY_COVERAGE; INNER_DISTANCE; READ_DISTRIBUTION } from '../modules/rseqc.nf'
+include { BAM_STRANDEDNESS } from '../subworkflows/bam_strandedness.nf'
 include { ASSESS_STRANDEDNESS } from '../modules/assess_strandedness.nf'
 
 include { EXTRACT_RRNA } from '../modules/extract_rrna.nf'
@@ -210,9 +211,6 @@ workflow RNASEQ {
         println "Entry point: '${ep}' mode: '${params.mode}'"
         if ( microbes && ep == 'genes_results' ) {
             error "entry_point 'genes_results' is eukaryotic-only (RSEM). Use counts_table for microbes."
-        }
-        if ( ep == 'bam_files' && !strandedness_set() ) {
-            error "--strandedness is required for entry_point bam_files (none, forward, or reverse)"
         }
 
         STAGE(
@@ -541,6 +539,12 @@ workflow RNASEQ {
                 .mix( pub_mqc(GENEBODY_COVERAGE_MULTIQC.out, ch_root, 'RSeQC_Analyses/MultiQC_Reports') )
                 .mix( pub_mqc(INNER_DISTANCE_MULTIQC.out, ch_root, 'RSeQC_Analyses/MultiQC_Reports') )
                 .mix( pub_mqc(READ_DISTRIBUTION_MULTIQC.out, ch_root, 'RSeQC_Analyses/MultiQC_Reports') )
+        } else if (ep == 'bam_files' && !strandedness_set()) {
+            BAM_STRANDEDNESS(STAGE.out.bam_files, STAGE.out.genome_bam_files, genome_bed)
+            strandedness = BAM_STRANDEDNESS.out.strandedness
+            paired_counting_bams = BAM_STRANDEDNESS.out.counting_bams
+            ch_versions = ch_versions.mix(BAM_STRANDEDNESS.out.versions)
+            ch_published = ch_published.mix(pub(BAM_STRANDEDNESS.out.logs, ch_root, 'RSeQC_Analyses/03_infer_experiment'))
         } else {
             strandedness = channel.value(convert_strandedness(params.strandedness))
         }
@@ -557,7 +561,7 @@ workflow RNASEQ {
                     ch_published = ch_published.mix( pub(QUANTIFY_STAR_GENES.out.publishables, ch_root, '02-STAR_Alignment') )
                 }
 
-                def tx_bam = ep == 'bam_files' ? STAGE.out.bam_files : bam_to_transcriptome
+                def tx_bam = ep == 'bam_files' ? (strandedness_set() ? STAGE.out.bam_files : paired_counting_bams) : bam_to_transcriptome
                 BUILD_RSEM_INDEX( derived_store_path, organism_sci, reference_source, reference_version, genome_references, ch_meta )
                 COUNT_ALIGNED( tx_bam, BUILD_RSEM_INDEX.out.index_dir.first(), strandedness )
                 genes_results = COUNT_ALIGNED.out.genes_results
@@ -579,7 +583,7 @@ workflow RNASEQ {
         }
 
         if ( microbes && ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
-            def bam_list = ep == 'bam_files' ? STAGE.out.bam_files.map { row -> row[1] }.collect() : bam_only_files
+            def bam_list = ep == 'bam_files' ? (strandedness_set() ? STAGE.out.bam_files : paired_counting_bams).map { row -> row[1] }.collect() : bam_only_files
             GET_GTF_FEATURES( genome_references )
             gtf_features = GET_GTF_FEATURES.out.gtf_features.map { f -> f.text.trim() }
             FEATURECOUNTS( ch_meta, genome_references, gtf_features, strandedness, bam_list )

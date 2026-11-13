@@ -49,7 +49,7 @@ Below is a description of each subworkflow and the additional output files gener
 1. **Analysis Staging Subworkflow**
 
    - Description:
-     - This subworkflow extracts the metadata parameters (e.g. organism, library layout) needed for processing from the OSD/GLDS ISA archive or a user-created runsheet and retrieves the input files for `--entry_point`. When using `--accession` to start from an intermediate step, the workflow downloads those files from the [Open Science Data Repository (OSDR)](https://osdr.nasa.gov/bio/repo/). See [4e](#4e-entry-points-and-required-inputs).
+     - This subworkflow extracts the metadata parameters (e.g. organism, library layout) needed for processing from the OSD/GLDS ISA archive or a user-created runsheet and retrieves the input files for the selected entry point. When using `--accession` to start from an intermediate step, the workflow downloads those files from the [Open Science Data Repository (OSDR)](https://osdr.nasa.gov/bio/repo/). See [Optional Parameters](#optional-parameters).
        > *OSD/GLDS ISA archive*: ISA directory containing Investigation, Study, and Assay (ISA) metadata files for a respective GLDS dataset - the *ISA.zip file is located under 'Files' -> 'Study Metadata Files' for any GeneLab Data Set (GLDS) in the [OSDR](https://osdr.nasa.gov/bio/repo/).
 
 2. **RNAseq Consensus Pipeline Subworkflow**
@@ -90,7 +90,6 @@ Below is a description of each subworkflow and the additional output files gener
    4b. [Approach 2: Run the workflow on a GeneLab RNAseq dataset with custom reference fasta and gtf files](#4b-approach-2-run-the-workflow-on-a-genelab-rnaseq-dataset-with-custom-reference-fasta-and-gtf-files)  
    4c. [Approach 3: Run the workflow on a non-GeneLab dataset using a user-created runsheet with automatic retrieval of reference fasta and gtf files](#4c-approach-3-run-the-workflow-on-a-non-genelab-dataset-using-a-user-created-runsheet-with-automatic-retrieval-of-reference-fasta-and-gtf-files)  
    4d. [Approach 4: Run the workflow on a non-GeneLab dataset using a user-created runsheet with custom reference fasta and gtf files](#4d-approach-4-run-the-workflow-on-a-non-genelab-dataset-using-a-user-created-runsheet-with-custom-reference-fasta-and-gtf-files)  
-   4e. [Entry points and required inputs](#4e-entry-points-and-required-inputs)
 5. [Additional Output Files](#5-additional-output-files)  
 
 <br>
@@ -106,7 +105,7 @@ Nextflow can be installed either through [Anaconda](https://anaconda.org/biocond
 > [!NOTE] 
 > If you want to install Anaconda, we recommend installing a Miniforge version appropriate for your system, as documented on the [conda-forge website](https://conda-forge.org/download/), where you can find basic binaries for most systems. More detailed miniforge documentation is available in the [miniforge github repository](https://github.com/conda-forge/miniforge).
 > 
-> This workflow requires Nextflow 26.04 or later. Once conda is installed on your system, you can install it by running the following commands:
+> Once conda is installed on your system, you can install the latest version of Nextflow by running the following commands:
 > 
 > ```bash
 > conda install -c bioconda nextflow
@@ -178,7 +177,7 @@ Both workflows automatically load reference files and organism-specific gene ann
 > [!NOTE]
 > Nextflow commands use both single hyphen arguments (e.g. -help) that denote general nextflow arguments and double hyphen arguments (e.g. --reference_version) that denote workflow specific parameters.  Take care to use the proper number of hyphens for each argument.
 >
-> To use Docker or Podman instead of Singularity, use `-profile docker` or `-profile podman`. Nextflow will pull images as needed.
+> To use Docker or Podman instead of Singularity, use `-profile docker` or `-profile podman`. Nextflow will automatically pull images as needed.
 >
 > The `-resume` parameter can be used to resume a previously interrupted workflow from where it left off (see [Nextflow documentation](https://www.nextflow.io/docs/latest/getstarted.html#modify-and-resume)) or to restart the workflow from a specific point by changing relevant parameters, which will re-execute that process and all downstream affected processes.
 
@@ -249,30 +248,6 @@ nextflow run NF_RCP_2.1.1/main.nf \
 
 <br>
 
-#### 4e. Entry points and required inputs
-
-`--entry_point` (default: `raw_reads`) determines where the workflow starts. Runsheet format: [examples/runsheet/README.md](examples/runsheet/README.md).
-
-| `--entry_point` | Input files | Also required |
-|:----------------|:------------|:--------------|
-| `raw_reads` | `read1_path` (+ `read2_path` if paired-end) | Reference fasta and gtf |
-| `trimmed_reads` | `trimmed_read1_path` (+ `trimmed_read2_path` if paired-end) | Reference fasta and gtf |
-| `bam_files` | `bam_path` | Reference fasta and gtf; `--strandedness` `none` / `forward` / `reverse` (not `auto`) |
-| `genes_results` | `genes_results_path` | Reference fasta and gtf; `--mode default` only |
-| `counts_table` | `counts_table_path` column or `--counts_table_path` | Reference fasta and gtf |
-| `dge_table` | `dge_table_path` column or `--dge_table_path` | |
-
-DGE uses `DESeqDataSetFromTximport` for `--mode default` (except `counts_table`, which uses `DESeqDataSetFromMatrix`) and `DESeqDataSetFromMatrix` for `--mode microbes`. `--entry_point dge_table` only adds gene annotations (no DGE).
-
-Defaults:
-
-* Organism in the [GeneLab annotations table](https://github.com/nasa/GeneLab_Data_Processing/blob/master/GeneLab_Reference_Annotations/Pipeline_GL-DPPD-7110_Versions/GL-DPPD-7110-A/GL-DPPD-7110-A_annotations.csv): fasta and gtf and gene annotations from that table. Override references with `--reference_fasta` and `--reference_gtf`. Override annotations with `--gene_annotations_file`.
-* `--strandedness` default `auto` (RSeQC infer_experiment). `none` / `forward` / `reverse` override. Required, no `auto`, for `bam_files`.
-* `--mode default` BAM: STAR `*_Aligned.toTranscriptome.out.bam`. `--mode microbes` BAM: Bowtie2 `*_sorted.bam`.
-
-<br>
-
-
 #### Required Parameters For All Approaches:
 
 * `NF_RCP_2.1.1/main.nf` - Instructs Nextflow to run the NF_RCP workflow 
@@ -297,35 +272,35 @@ Defaults:
 
 * `--reference_source` - specifies the source of the reference files used (the source indicated in the Approach 2 example is `ensembl`) 
 
-* `--reference_fasta` - specifies the URL or path to a fasta file 
+* `--reference_fasta` - Specifies the path or URL to a fasta file
 
-* `--reference_gtf` - specifies the URL or path to a gtf file
+* `--reference_gtf` - Specifies the path or URL to a gtf file
 
 <br>
 
 **Additional Required Parameters For [Approach 3](#4c-approach-3-run-the-workflow-on-a-non-genelab-dataset-using-a-user-created-runsheet-with-automatic-retrieval-of-reference-fasta-and-gtf-files):**
 
-* `--runsheet_path` - specifies the path to a local runsheet; if not provided, a runsheet is automatically generated using OSDR metadata (type: string, default: null)
+* `--runsheet_path` - Specifies the path to a local runsheet; if not provided, a runsheet is automatically generated using OSDR metadata (type: string, default: null)
 
 <br>
 
 **Additional Required Parameters For [Approach 4](#4d-approach-4-run-the-workflow-on-a-non-genelab-dataset-using-a-user-created-runsheet-with-custom-reference-fasta-and-gtf-files):**
 
-* `--runsheet_path` - specifies the path to a local runsheet; if not provided, a runsheet is automatically generated using OSDR metadata (type: string, default: null)
+* `--runsheet_path` - Specifies the path to a local runsheet; if not provided, a runsheet is automatically generated using OSDR metadata (type: string, default: null)
 
 * `--reference_version` - specifies the reference source version to use for the reference genome (Ensembl release `112` is used in this example); only needed when using Ensembl as the reference source
 
 * `--reference_source` - specifies the source of the reference files used (the source indicated in the Approach 2 example is `ensembl`) 
 
-* `--reference_fasta` - specifies the URL or path to a fasta file 
+* `--reference_fasta` - Specifies the path or URL to a fasta file
 
-* `--reference_gtf` - specifies the URL or path to a gtf file
+* `--reference_gtf` - Specifies the path or URL to a gtf file
 
 <br>
 
 #### Optional Parameters:
 
-* `--gene_annotations_file` - Specifies the URL or path to a gene annotation file that adds additional gene annotation columns to the differential expression output table. This can be:
+* `--gene_annotations_file` - Specifies the path or URL to a gene annotation file that adds additional gene annotation columns to the differential expression output table. This can be:
 
   - The file listed in the `genelab_annots_link` column of the [GeneLab annotations table](https://github.com/nasa/GeneLab_Data_Processing/blob/master/GeneLab_Reference_Annotations/Pipeline_GL-DPPD-7110_Versions/GL-DPPD-7110-A/GL-DPPD-7110-A_annotations.csv)
   - A custom gene annotation file where:
@@ -338,9 +313,9 @@ Defaults:
 
 * `--force_single_end` - forces the analysis to use single end processing; for paired end datasets, this means only R1 is used; for single end datasets, this should have no effect (type: boolean, default: false)  
 
-* `--reference_store_path` - specifies the directory to store the reference fasta and gtf files (type: string, default: "./References")  
+* `--reference_store_path` - Specifies the path to the directory used to store the reference fasta and gtf files (type: string, default: "./References")
 
-* `--derived_store_path` - specifies the directory to store the tool-specific indices created during processing (type: string, default: "./DerivedReferences")
+* `--derived_store_path` - Specifies the path to the directory used to store the tool-specific indices created during processing (type: string, default: "./DerivedReferences")
 
 * `--pbs_queue` - PBS Pro queue when using `-profile pbspro` (default: `normal`)
 
@@ -377,23 +352,29 @@ Defaults:
 
   * `--drop_unalignable` - Exclude samples from DGE when RSEM `pct_unalignable` is at or above `--unalignable_threshold` (type: boolean, default: true). Default mode only; no-op for microbes and for `counts_table` / `genes_results` / `dge_table`.
 
-  * `--unalignable_threshold` - Percent unalignable at or above which a sample is dropped from DGE (type: number, default: 60)
+  * `--unalignable_threshold` - Percent unalignable at or above which a sample is dropped from count normalization and DGE (type: number, default: 60)
 
 * **Entry Point Parameters** - Options for starting the workflow from different processing steps:
 > [!NOTE]
 > When using `--accession` and running the workflow from an intermediate entry point, the workflow downloads the input files from [OSDR](https://osdr.nasa.gov/bio/repo/) and generates the runsheet containing the required metadata. When using both `--accession` and `--runsheet_path` together, the workflow will validate that the runsheet contains the expected input file columns. See the [runsheet README](examples/runsheet/README.md) for runsheet format details.
 
-* `--entry_point` - Where to start (`raw_reads`, `trimmed_reads`, `bam_files`, `genes_results`, `counts_table`, `dge_table`). Default: `raw_reads`. Required inputs: [4e](#4e-entry-points-and-required-inputs).
+* `--entry_point` - Specifies the workflow entry point to start from (default: `raw_reads`). Available options:
+  - `raw_reads` - Start from raw read files (`.fastq.gz`) (default)
+  - `trimmed_reads` - Start from trimmed read files (`.fastq.gz`). Raw read quality-checking and trimming are skipped
+  - `bam_files` - Start from BAM files (`.bam`). For `--mode default`, expects STAR-aligned transcriptome BAM files. For `--mode microbes`, expects Bowtie2-aligned BAM files. With `--mode default` and `--strandedness auto`, also supply a matching genomic BAM for each sample in the runsheet column `genome_bam_path`. References must match the BAMs’ original assembly and annotation release.
+  - `genes_results` - Start from RSEM gene expression files (`.genes.results`) (`--mode default` only)
+  - `counts_table` - Start from a raw counts table (`.csv`)
+  - `dge_table` - Start from a DGE output table. Adds gene annotation columns to the input table or replaces them if they already exist (`.csv`)
 
-* `--strandedness` - `auto`, `none`, `forward`, or `reverse` (default: `auto`). Required, no `auto`, for `--entry_point bam_files`. See [4e](#4e-entry-points-and-required-inputs).
+* `--strandedness` - `auto`, `none`, `forward`, or `reverse` (default: `auto`). `auto` = infer strandedness from RSeQC infer_experiment. `none`/`forward`/`reverse` overrides RSeQC output. For `--entry_point bam_files`, `auto` uses the matching genomic BAM in default mode and `bam_path` in microbes mode. With explicit `none`, `forward`, or `reverse`, only `bam_path` is needed.
 
-* `--counts_table_path` - Path or URL to a raw counts table (`.csv`). Used with `--entry_point counts_table` instead of a `counts_table_path` runsheet column.
+* `--counts_table_path` - Specifies the path to a raw counts table (`.csv`). Used with `--entry_point counts_table` instead of a `counts_table_path` runsheet column.
 
-* `--dge_table_path` - Path or URL to a DGE table (`.csv`). Used with `--entry_point dge_table` instead of a `dge_table_path` runsheet column.
+* `--dge_table_path` - Specifies the path to a DGE table (`.csv`). Used with `--entry_point dge_table` instead of a `dge_table_path` runsheet column.
 
-* `--stage_only` - Publish the runsheet and staged inputs for the current `--entry_point`, then exit. `truncate_to` applies to raw and trimmed reads (type: boolean, default: false)
+* `--stage_only` - Publish the runsheet and staged inputs for the selected `--entry_point`, then exit. `truncate_to` applies to raw and trimmed reads (type: boolean, default: false)
 
-* `--post_processing` - Update the assay table and generate md5sums for `${outdir}/${accession}` (type: boolean, default: false)
+* `--post_processing` - Run the post-processing workflow (type: boolean, default: false)
  
 <br>
 
@@ -420,7 +401,7 @@ The outputs from the Analysis Staging and V&V Pipeline Subworkflows are describe
 **Analysis Staging Subworkflow**
 
    - Output:
-     - Metadata/\*_bulkRNASeq_v2_runsheet.csv (metadata required for processing, including input file locations for the current `--entry_point`)
+     - Metadata/\*_bulkRNASeq_v2_runsheet.csv (metadata required for processing, including input file locations for the selected `--entry_point`)
      - Metadata/\*-ISA.zip (the ISA archive of the OSD datasets to be processed, downloaded from the OSDR)
    
    
@@ -449,13 +430,6 @@ The outputs from the Analysis Staging and V&V Pipeline Subworkflows are describe
   - Output:
     - GeneLab/qc_metrics_GLbulkRNAseq.csv (comma-separated text file containing a summary of qc metrics and metadata for the dataset, see the [QC metrics README](./QC_metrics_README.md) for a complete list of field definitions)
 
-**ERCC Analysis** (when `has_ERCC` is true, `--mode default`, and `--entry_point` is not `dge_table`)
-
-  - Output:
-    - ERCC_Analysis/combined_ercc_analysis_GLbulkRNAseq.ipynb (executed notebook)
-    - ERCC_Analysis/ERCC_analysis_GLbulkRNAseq.html
-    - ERCC_Analysis/ERCC_analysis/ (tables)
-    - ERCC_Analysis/ERCC_analysis_error_GLbulkRNAseq.txt (only if ISA metadata selection fails)
 <br>
 
 Standard Nextflow resource usage logs are also produced as follows:
@@ -477,13 +451,51 @@ Standard Nextflow resource usage logs are also produced as follows:
 
 # ERCC Analysis Workflow
 
-Runs after RSEM unnormalized counts (or a staged counts table) when `has_ERCC` is true and `--mode default`. Skipped for `--mode microbes` and `--entry_point dge_table`. Outputs: [Additional Output Files](#5-additional-output-files).
+> [!NOTE]
+> The workflow runs the ERCC analysis automatically in `--mode default` when `has_ERCC` is true and the selected entry point produces or imports raw counts (not `dge_table`). ISA metadata identifying each sample’s spike-in mix is required; with a user-supplied runsheet, provide `--isa_archive_path`.
 
-`--mode microbes` still concatenates ERCC onto the reference when `has_ERCC` is true and the entry point is not `dge_table`.
+## Running ERCC Analysis
 
-For runs with a supplied runsheet, provide `--isa_archive_path` for ERCC analysis. The ISA archive must identify the samples’ spike-in mixes.
+1. [Install conda and the ERCC analysis environment](#1-install-conda-and-the-ercc-analysis-environment)
+2. [Launch Jupyter environment](#2-launch-jupyter-environment)
+3. [Execute the ERCC Analysis](#3-execute-the-ercc-analysis)
+<br>
 
-The notebook and `workflow_code/envs/ercc_analysis.yml` are in the repo if you want to re-run locally.
+---
+
+### 1. Install conda and the ERCC analysis environment
+
+We recommend installing a Miniforge version appropriate for your system, as documented on the [conda-forge website](https://conda-forge.org/download/), where you can find basic binaries for most systems. More detailed miniforge documentation is available in the [miniforge github repository](https://github.com/conda-forge/miniforge).
+
+Once conda is installed on your system, create the ercc_analysis conda environment:
+```bash
+conda env create -f NF_RCP_2.1.1/envs/ercc_analysis.yml
+```
+
+### 2. Launch Jupyter environment
+
+Create an  working folder for the ERCC Analysis in the main analysis directory created in [Step 4](#4-run-the-workflow) above and copy the Jupyter notebook file into it (downloaded in [Step 2](#2-download-the-workflow-files)) and start a local Jupyter notebook server.
+
+```bash
+# create working directory
+mkdir ERCC_Analysis
+
+# copy Jupyter Notebook from workflow_code folder to new working directory
+cp NF_RCP_2.1.1/bin/combined_ercc_analysis.ipynb ERCC_Analysis
+
+# activate the ercc_analysis environment
+conda activate ercc_analysis
+
+# start Jupyter Notebook:
+jupyter notebook
+```
+The `jupyter notebook` command will open a page in the default web browser showing a file listing of the folder it was launched from. If the web page does not open automatically, navigate to [http://localhost:8888/tree](http://localhost:8888/tree).
+
+### 3. Execute the ERCC Analysis
+
+Open the combined_ercc_analysis.ipynb notebook found in the ERCC_Analysis folder created above and follow the instructions for running in the analysis in the notebook.
+
+Once the last cell has been executed, export the notebook contents to HTML using the "Save and Export Notebook As" option in the "File" menu.
 
 <br>
 
@@ -524,5 +536,5 @@ Jonathan Oribello
 **Maintained by:**  
 Alexis Torres  
 
-**Contributors:**
+**Contributors:**\
 Crystal Han   

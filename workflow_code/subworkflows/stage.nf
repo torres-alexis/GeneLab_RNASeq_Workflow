@@ -6,6 +6,8 @@ include { GET_ACCESSIONS } from '../modules/get_accessions.nf'
 include { STAGE_READS } from './stage_reads.nf'
 include { GET_OSDR_FILE_LIST } from '../modules/get_osdr_file_list.nf'
 include { UPDATE_OSDR_RUNSHEET } from '../modules/update_osdr_runsheet.nf'
+include { COPY_BAMS as COPY_GENOME_BAMS } from '../modules/copy_bams.nf'
+include { FETCH_BAM as FETCH_GENOME_BAM } from '../modules/fetch_remote.nf'
 include { COPY_BAMS } from '../modules/copy_bams.nf'
 include { COPY_GENES_RESULTS } from '../modules/copy_genes_results.nf'
 include { COPY_COUNTS_TABLE } from '../modules/copy_counts_table.nf'
@@ -131,6 +133,7 @@ workflow STAGE {
         channel.empty() | set { raw_reads }
         channel.empty() | set { trimmed_reads }
         channel.empty() | set { bam_files }
+        channel.empty() | set { genome_bam_files }
         channel.empty() | set { genes_results }
         channel.empty() | set { counts_table }
         channel.empty() | set { dge_table }
@@ -193,6 +196,13 @@ workflow STAGE {
             FETCH_BAM( ch_bam.remote )
             COPY_BAMS( ch_bam.local )
             bam_files = FETCH_BAM.out.bam_files.mix( COPY_BAMS.out.bam_files )
+            if (params.strandedness == 'auto' && params.mode != 'microbes') {
+                ch_genome = remote_files(PARSE_RUNSHEET.out.genome_samples)
+                FETCH_GENOME_BAM(ch_genome.remote)
+                COPY_GENOME_BAMS(ch_genome.local)
+                genome_bam_files = FETCH_GENOME_BAM.out.bam_files.mix(COPY_GENOME_BAMS.out.bam_files)
+                published = published.mix(pub_sample(genome_bam_files, ch_root, '02-STAR_Alignment'))
+            }
             samples_txt = samples_txt_from(bam_files)
             published = published.mix( pub_sample(bam_files, ch_root, params.mode == 'microbes' ? '02-Bowtie2_Alignment' : '02-STAR_Alignment') )
         } else if ( ep == 'genes_results' ) {
@@ -232,6 +242,7 @@ workflow STAGE {
         glds_accession  = glds_accession
         raw_reads       = raw_reads
         trimmed_reads   = trimmed_reads
+        genome_bam_files = genome_bam_files
         bam_files       = bam_files
         genes_results   = genes_results
         counts_table    = counts_table

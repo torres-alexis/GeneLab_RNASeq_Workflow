@@ -42,6 +42,7 @@ def runsheet_cols() {
         raw:      [files: ['read1_path'],              paired: ['read2_path']],
         trimmed:  [files: ['trimmed_read1_path'],      paired: ['trimmed_read2_path']],
         bam:      [files: ['bam_path']],
+        genome_bam: [files: ['genome_bam_path']],
         genes:    [files: ['genes_results_path']],
         counts:   [table: 'counts_table_path'],
         dge:      [table: 'dge_table_path'],
@@ -86,6 +87,7 @@ def require_col(LinkedHashMap row, String col, String type) {
 
 def get_runsheet_paths(LinkedHashMap row, String type) {
     def meta = row_to_meta(row)
+    if (type == 'genome_bam') meta.genome_bam = true
     def cols = runsheet_cols()
     if (!cols.containsKey(type)) {
         throw new RuntimeException("Unknown runsheet type '${type}'. Expected one of: ${cols.keySet()}")
@@ -208,7 +210,22 @@ workflow PARSE_RUNSHEET {
             | filter { path -> path != null && path != "" }
             | unique
 
+        genome_samples = ch_rows
+            .filter { row, parse_type -> parse_type == 'bam' && params.mode != 'microbes' && params.strandedness == 'auto' }
+            .map { row, _type -> get_runsheet_paths(row, 'genome_bam') }
+
+        genome_samples.flatMap { meta, files -> files }.collect().map { paths ->
+            if (paths.size() != paths.toSet().size()) error "BAM auto strandedness requires a distinct genome_bam_path for each sample"
+        }
+
+        if (params.entry_point == 'bam_files' && params.strandedness == 'auto') {
+            ch_samples.map { meta, _files -> meta.id }.collect().map { ids ->
+                if (ids.size() != ids.toSet().size()) error "BAM auto strandedness requires unique Sample Name values"
+            }
+        }
+
     emit:
+        genome_samples = genome_samples
         samples = ch_samples
         table = table
         runsheet = ch_runsheet

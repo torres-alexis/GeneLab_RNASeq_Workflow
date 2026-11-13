@@ -18,6 +18,7 @@ process UPDATE_OSDR_RUNSHEET {
             --file-list ${file_list} \\
             --glds ${glds_accession} \\
             --entry-point ${entry_point} \\
+            --strandedness ${params.strandedness} \\
             --mode ${params.mode} \\
             --assay-suffix '${params.assay_suffix}' \\
             --out 'updated/${runsheet.name}'
