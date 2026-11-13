@@ -354,6 +354,9 @@ Defaults:
 > [!NOTE]
 > This allows the workflow to process either eukaryotic (default) or prokaryotic RNAseq data using the appropriate pipeline.
 
+* `--dge_parallel_config` - DESeq2 backend: `serial` (default), `multicore` or `snow` (socket workers).
+* `--dge_parallel_cores` - CPUs requested for DESeq2 processes if `dge_parallel_config` is `multicore` or `snow`.
+
 * **DGE Filtering Parameters** - Options for filtering genes prior to DGE analysis:
 
   * `--dge_filter_method` - Method for filtering genes based on raw counts prior to differential expression analysis (type: string, default: "sum_threshold"):

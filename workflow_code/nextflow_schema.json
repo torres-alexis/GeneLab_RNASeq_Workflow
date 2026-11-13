@@ -20,7 +20,15 @@
     },
     "dge_parallel_config": {
       "type": "string",
-      "default": "SerialParam(RNGseed = 7)"
+      "enum": ["serial", "multicore", "snow"],
+      "default": "serial",
+      "description": "DESeq2 BiocParallel mode."
+    },
+    "dge_parallel_cores": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 4,
+      "description": "CPUs requested for DESeq2 processes if dge_parallel_config is multicore or snow."
     }
   },
   "$defs": {

@@ -23,6 +23,11 @@ process DGE_DESEQ2 {
         def output_filename_label = output_label ?: ""
         def output_filename_suffix = params.assay_suffix ?: ""
         def microbes = params.mode == 'microbes' ? 'TRUE' : 'FALSE'
+        if (!(params.dge_parallel_config in ['serial', 'multicore', 'snow']))
+            error '--dge_parallel_config must be serial, multicore or snow'
+        def cores = params.dge_parallel_cores
+        if (!(cores.toString() ==~ /[1-9][0-9]*/) || !cores.toString().isInteger())
+            error '--dge_parallel_cores must be a positive integer'
         def debug_dummy_counts = params.use_dummy_gene_counts ? 'TRUE'  : 'FALSE'
 
         // For counts_table entry point, pass the CSV file path; otherwise use directory/file path
@@ -31,7 +36,6 @@ process DGE_DESEQ2 {
         def counts_table_file = params.entry_point == "counts_table" ? gene_counts : ""
 
         """
-        # For counts_table entry point, gene_counts is already the CSV - skip directory setup
         if [[ "${params.entry_point}" != "counts_table" ]] && [[ "${params.mode}" != "microbes" ]]; then
             mkdir -p gene_counts
             mv ${gene_counts} gene_counts/
@@ -46,7 +50,7 @@ process DGE_DESEQ2 {
             output_dir = '\${PWD}',
             params = list(
                 cpus = ${task.cpus},
-                parallel_config = '${params.dge_parallel_config ?: ""}',
+                ${params.dge_parallel_config == 'serial' ? "" : "parallel_config = '${params.dge_parallel_config}',"}
                 work_dir = '\${PWD}',
                 output_directory = '\${PWD}',
                 output_filename_label = '${output_filename_label}',

@@ -5,10 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.1]
+## [2.1.1](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/v2.1.1) - 2026-11-13
 
 ### Added
 
+- Add `--dge_parallel_config` and `--dge_parallel_cores` for DESeq2.
 - Add PBS Pro and Podman profiles.
 - Support local and mixed local/remote FASTA and GTF references.
 - Run applicable ERCC spike-in analysis after RSEM quantification; publish notebooks, HTML and tables under `ERCC_Analysis`.
@@ -30,23 +31,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Run FASTQ validation per file and raw/processed checksum generation in parallel.
 - Update process resource allocations and walltimes. Leave local walltime unset and cap PBS Pro tasks at eight hours.
 - Enable scratch staging for Slurm and PBS Pro processes.
-- Use the configured DESeq2 backend for the LRT step.
 - Update the `dp_tools` image to `1.3.8-slim`.
 - Normalize merged-sequence assay fields and remove empty ontology-column pairs.
 - Stop generating unused rRNA-removal summary files.
 
 ### Fixed
 
+- Use the configured DESeq2 backend for the LRT step.
+- Fix DESeq2 BiocParallel backend handling.
 - Publish the runsheet and available ISA archive once for every entry point.
 - Use the resolved output directory for validation and post-processing.
-- Support single-sample FeatureCounts output tables.
 - Validate FeatureCounts nonzero-gene reports and rRNA-removed count tables.
 - Allow annotation processing to continue when no gene annotation file is supplied or the file is empty.
 - Remove the Mozilla user agent from Figshare annotation downloads to avoid HTTP 403 errors.
 - Prevent reference version-report files from overwriting each other.
-- Correct rendered protocol version links and ERCC count-axis labels.
+- Correct ERCC count-axis labels.
 
-## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.1.0) - 2025-12-09
+## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/v2.1.0) - 2025-12-09
 
 ### Added
 
@@ -86,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `REMOVE_RRNA` to copy unfiltered `genes.results` when the rRNA ID list is empty
 - Fixed missing .grp file bug in `build_rsem_index.nf` ([#8](https://github.com/nasa/GeneLab_RNASeq_Workflow/issues/8))
 
-## [2.0.2](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.0.2) - 2025-08-26
+## [2.0.2](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/v2.0.2) - 2025-08-26
 
 ### Added
 

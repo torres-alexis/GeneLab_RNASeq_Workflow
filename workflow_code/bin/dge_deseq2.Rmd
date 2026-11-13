@@ -19,7 +19,7 @@ params:
   counts_table_file: "" # path to counts table CSV (for counts_table entry point)
   DEBUG_MODE_LIMIT_GENES: FALSE # debugging option to limit the number of genes
   DEBUG_MODE_ADD_DUMMY_COUNTS: FALSE # debugging option to add dummy counts
-  parallel_config: NULL # parallel configuration string (e.g. "MulticoreParam(workers = params$cpus)")
+  parallel_config: serial # DESeq2 BiocParallel mode: serial, multicore, or snow.
   dge_filter_method: "sum_threshold" # Method for filtering genes: 'sum_threshold', 'sample_percent', 'min_samples', 'count_per_sample'
   dge_filter_sum_threshold: 10 # Minimum total count sum across all samples
   dge_filter_sample_percent_threshold: 90 # Maximum % of gene's total counts allowed in limited samples
@@ -68,13 +68,18 @@ library(dplyr)
 library(tximport)
 library(DESeq2)
 library(BiocParallel)
-# Set up parallel backend if params$parallel_config is defined, otherwise set BPPARAM <- SerialParam(RNGseed = 7)
-# See https://rdrr.io/bioc/BiocParallel/man/register.html
-if (!is.null(params$parallel_config) && params$parallel_config != "") {
-    BPPARAM <- eval(parse(text = params$parallel_config))
-} else {
-    BPPARAM <- SerialParam(RNGseed = 7)
+if (!params$parallel_config %in% c("serial", "multicore", "snow")) {
+    stop("parallel_config must be serial, multicore or snow")
 }
+if (length(params$cpus) != 1 || !is.numeric(params$cpus) ||
+    !is.finite(params$cpus) || params$cpus < 1 || params$cpus != as.integer(params$cpus)) {
+    stop("cpus must be a positive integer")
+}
+BPPARAM <- switch(params$parallel_config,
+    serial = SerialParam(RNGseed = 7),
+    multicore = MulticoreParam(workers = params$cpus, RNGseed = 7),
+    snow = SnowParam(workers = params$cpus, type = "SOCK", RNGseed = 7)
+)
 # Set random seed for reproducibility
 set.seed(7)
 # Save parameters
@@ -526,8 +531,8 @@ lrt_pvalues <- res_lrt@listData$padj
 
 ```{r wald-test-iteration}
 ## Iterate through Wald Tests to generate pairwise comparisons of all groups
-compute_contrast <- function(dds, i) {
-    res <- results(
+compute_contrast <- function(i, dds, contrasts) {
+    res <- DESeq2::results(
         dds,
         contrast = c("condition", contrasts[1, i], contrasts[2, i]),
         parallel = FALSE  # Disable internal parallelization
@@ -541,7 +546,8 @@ compute_contrast <- function(dds, i) {
     )
     return(res_df)
 }
-res_list <- bplapply(1:dim(contrasts)[2], function(i) compute_contrast(dds, i), BPPARAM = BPPARAM)
+res_list <- bplapply(1:dim(contrasts)[2], compute_contrast,
+                    dds = dds, contrasts = contrasts, BPPARAM = BPPARAM)
 # Combine the list of data frames into a single data frame
 res_df <- do.call(cbind, res_list)
 # Combine with the existing output_table
