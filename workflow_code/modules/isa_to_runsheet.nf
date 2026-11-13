@@ -2,7 +2,7 @@ process ISA_TO_RUNSHEET {
     tag "${osd_accession}_${glds_accession}"
 
     input: 
-    val(ch_outdir)
+
     val(osd_accession)
     val(glds_accession)
     path(isa_archive)

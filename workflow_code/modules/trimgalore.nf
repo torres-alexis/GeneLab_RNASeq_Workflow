@@ -1,15 +1,7 @@
 process TRIMGALORE {
   tag "Sample: ${ meta.id }"
 
-  publishDir path: { "${ publishdir }/Fastq" },
-      pattern:  "*trimmed.fastq.gz" ,
-      mode: params.publish_dir_mode
-  publishDir path: { "${ publishdir }/Trimming_Reports" },
-      pattern:  "*trimming_report.txt" ,
-      mode: params.publish_dir_mode
-
   input:
-    val(publishdir)
     tuple val(meta), path(reads)
 
   output:

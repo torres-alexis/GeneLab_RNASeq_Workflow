@@ -12,17 +12,12 @@ process REMOVE_RRNA {
      *   rRNA count summary file.
      */
 
-    publishDir path: { publishdir + "/" + meta.id },
-        pattern: { "${meta.id}${params.assay_suffix}_rRNArm.genes.results" },
-        mode: params.publish_dir_mode
-
     input:
-        val(publishdir)
         path rrna_ids_file
         tuple val(meta), path("${meta.id}${ params.assay_suffix }.genes.results")
 
     output:
-        path("${meta.id}${params.assay_suffix}_rRNArm.genes.results"), emit: genes_results_rrnarm
+        tuple val(meta), path("${meta.id}${params.assay_suffix}_rRNArm.genes.results"), emit: genes_results_rrnarm
         path("${meta.id}${params.assay_suffix}_rRNA_counts.txt"), emit: rrnarm_summary
 
     script:

@@ -6,23 +6,14 @@
 process ALIGN_BOWTIE2 {
   tag "Sample: ${ meta.id }"
 
-  publishDir path: { publishdir + "/" + meta.id },
-    pattern: { "${ meta.id }${ params.assay_suffix }.bowtie2.log" },
-    mode: params.publish_dir_mode
-
-  publishDir path: { publishdir + "/" + meta.id },
-    pattern: { "${ meta.id }${ params.assay_suffix }_*unmapped.fastq.gz" },
-    mode: params.publish_dir_mode
-
   input:
-    val(publishdir)
     tuple val(meta), path(reads)
     path(bowtie2_index_dir)
 
   output:
     tuple val(meta), path("${ meta.id }${ params.assay_suffix }.bam"), emit: bam
-    path("${ meta.id }${ params.assay_suffix }_*unmapped.fastq.gz"), emit: unmapped_reads
-    path("${ meta.id }${ params.assay_suffix }.bowtie2.log"), emit: alignment_logs
+    tuple val(meta), path("${ meta.id }${ params.assay_suffix }_*unmapped.fastq.gz"), emit: unmapped_reads
+    tuple val(meta), path("${ meta.id }${ params.assay_suffix }.bowtie2.log"), emit: alignment_logs
     path("versions.yml"), emit: versions
 
   script:

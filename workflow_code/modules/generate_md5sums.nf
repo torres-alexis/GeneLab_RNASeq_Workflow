@@ -1,9 +1,5 @@
 process GENERATE_MD5SUMS {
   // Generates tabular data for GeneLab raw and processed data
-    publishDir path: { "${ch_outdir}/GeneLab" },
-        mode: params.publish_dir_mode,
-        pattern: "*md5sum*"
-
     input:
         path(ch_outdir)
     output:

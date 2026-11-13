@@ -3,7 +3,6 @@ process QUANTIFY_FEATURECOUNTS_GENES {
   // An R script that gets the number of non-zero genes per sample in a featureCounts output table
 
   input:
-    val(publishdir)
     path("samples.txt")
     path("03-FeatureCounts/*")
 

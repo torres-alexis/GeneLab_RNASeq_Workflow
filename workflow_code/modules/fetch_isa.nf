@@ -3,7 +3,6 @@ process FETCH_ISA {
     tag "${osd_accession}"
 
     input:
-    val(ch_outdir)
     val(osd_accession)
     val(glds_accession)
     output:

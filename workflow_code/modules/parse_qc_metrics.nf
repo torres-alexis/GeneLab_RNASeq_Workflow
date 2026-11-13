@@ -1,9 +1,6 @@
 process PARSE_QC_METRICS {
-    publishDir path: { "${ publishdir }/GeneLab" },
-    mode: params.publish_dir_mode
-
     input:
-        val(publishdir)
+
         val(osd_accession)
         val(meta)
         path(isa_zip)

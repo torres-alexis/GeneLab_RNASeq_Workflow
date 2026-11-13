@@ -1,11 +1,5 @@
 process PUBLISH_METADATA {
-    publishDir path: { "${publishdir}/Metadata" },
-        mode: params.publish_dir_mode,
-        pattern: "metadata/*",
-        saveAs: { filename -> filename.replaceFirst('^metadata/', '') }
-
     input:
-        val(publishdir)
         path(runsheet)
         path(isa_archive)
 

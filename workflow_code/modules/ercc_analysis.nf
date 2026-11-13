@@ -1,14 +1,5 @@
 process ERCC_ANALYSIS {
-    publishDir path: { "${publishdir}" },
-        mode: params.publish_dir_mode,
-        pattern: "{combined_ercc_analysis${params.assay_suffix}.ipynb,ERCC_analysis${params.assay_suffix}.html,ERCC_analysis_error${params.assay_suffix}.txt}"
-
-    publishDir path: { "${publishdir}" },
-        mode: params.publish_dir_mode,
-        pattern: "ERCC_analysis"
-
     input:
-        val(publishdir)
         val(has_ercc)
         val(accession)
         path(isa_zip)
