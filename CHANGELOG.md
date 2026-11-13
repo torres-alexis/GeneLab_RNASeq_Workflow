@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default `--strandedness` to `auto`; BAM entry requires `none`, `forward` or `reverse`.
 - Resolve OSDR input URLs for the selected entry point, including older published filenames.
 - Fetch remote inputs and annotations in worker processes. Apply `truncate_to` to raw and trimmed reads there.
-- Split DGE by `Factor Value[organism part]` when multiple values are present; label outputs by organism part.
+- Split DGE by `Factor Value[organism part]` when multiple values are present; label outputs and describe the split in the protocol.
 - Exclude samples with at least 60% RSEM unalignable reads before DGE by default for raw-read, trimmed-read and BAM entry points in default mode. Configure with `--drop_unalignable` and `--unalignable_threshold`.
 - Publish unnormalized counts in the RSEM or FeatureCounts `03` directory, and normalized/VST counts in `04`.
 - Have STAR emit `*_Aligned.out.bam`. Convert Bowtie2 SAM to BAM in a separate step before sorting.
