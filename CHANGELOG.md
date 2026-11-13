@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Publish the runsheet and available ISA archive once for every entry point.
+- Prevent reference version-report files from overwriting each other.
 - Correct ERCC count-axis labels.
 
 ## [2.1.0](https://github.com/nasa/GeneLab_RNASeq_Workflow/tree/NF_RCP_2.1.0) - 2025-12-09
