@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a PBS Pro execution profile.
+- Add PBS Pro and Podman profiles.
 - Run applicable ERCC spike-in analysis after RSEM quantification; publish notebooks, HTML and tables under `ERCC_Analysis`.
 
 ### Changed
