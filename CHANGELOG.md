@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default `--strandedness` to `auto`; BAM entry requires `none`, `forward` or `reverse`.
 - Resolve OSDR input URLs for the selected entry point, including older published filenames.
 - Fetch remote inputs in worker processes. Apply `truncate_to` to raw and trimmed reads there.
+- Publish unnormalized counts in the RSEM or FeatureCounts `03` directory, and normalized/VST counts in `04`.
 - Update the `dp_tools` image to `1.3.8-slim`.
 - Stop generating unused rRNA-removal summary files.
 

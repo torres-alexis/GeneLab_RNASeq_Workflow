@@ -231,11 +231,11 @@ def check_deseq2_normcounts_existence(outdir, log_path, assay_suffix="_GLbulkRNA
         else:
             component = f"{component}_{stratum}"
     
-    # Set the unnormalized counts filename based on mode
+    counts_root = os.path.abspath(os.path.dirname(outdir))
     if mode == "microbes":
-        unnorm_file = f"FeatureCounts_Unnormalized_Counts{assay_suffix}.csv"
+        unnorm_file = os.path.join(counts_root, "03-FeatureCounts", f"FeatureCounts_Unnormalized_Counts{assay_suffix}.csv")
     else:
-        unnorm_file = f"RSEM_Unnormalized_Counts{assay_suffix}.csv"
+        unnorm_file = os.path.join(counts_root, "03-RSEM_Counts", f"RSEM_Unnormalized_Counts{assay_suffix}.csv")
     
     # List of expected files
     expected_files = [
@@ -2487,9 +2487,9 @@ def check_ercc_presence(outdir, runsheet_path, log_path, assay_suffix="_GLbulkRN
         
         # Set the unnormalized counts file based on mode
         if mode == "microbes":
-            unnorm_path = os.path.join(outdir, f"FeatureCounts_Unnormalized_Counts{assay_suffix}.csv")
+            unnorm_path = os.path.join(os.path.dirname(outdir), "03-FeatureCounts", f"FeatureCounts_Unnormalized_Counts{assay_suffix}.csv")
         else:
-            unnorm_path = os.path.join(outdir, f"RSEM_Unnormalized_Counts{assay_suffix}.csv")
+            unnorm_path = os.path.join(os.path.dirname(outdir), "03-RSEM_Counts", f"RSEM_Unnormalized_Counts{assay_suffix}.csv")
             
         norm_path = os.path.join(outdir, f"Normalized_Counts{assay_suffix}.csv")
         vst_norm_path = os.path.join(outdir, f"VST_Counts{assay_suffix}.csv")

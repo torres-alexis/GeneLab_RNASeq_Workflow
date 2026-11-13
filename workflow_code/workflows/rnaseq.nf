@@ -36,6 +36,8 @@ include { EXTRACT_RRNA } from '../modules/extract_rrna.nf'
 include { REMOVE_RRNA } from '../modules/remove_rrna.nf'
 include { REMOVE_RRNA_FEATURECOUNTS } from '../modules/remove_rrna_featurecounts.nf'
 include { REMOVE_RRNA_COUNTS_TABLE } from '../modules/remove_rrna_counts_table.nf'
+include { REMOVE_RRNA_COUNTS_TABLE as REMOVE_RRNA_RSEM_TABLE } from '../modules/remove_rrna_counts_table.nf'
+include { REMOVE_RRNA_COUNTS_TABLE as REMOVE_RRNA_FC_TABLE } from '../modules/remove_rrna_counts_table.nf'
 include { DGE_DESEQ2 } from '../modules/dge_deseq2.nf'
 include { DGE_DESEQ2 as DGE_DESEQ2_RRNA_RM } from '../modules/dge_deseq2.nf'
 include { ANNOTATE_DGE_TABLE } from '../modules/annotate_dge_table.nf'
@@ -114,7 +116,8 @@ def pub_by_meta(ch, root, dir) {
 }
 
 def pub_dge(dge, root) {
-    return pub(dge.norm_counts, root, '04-DESeq2_NormCounts')
+    def normalized = dge.norm_counts.map { norm, _unnorm -> norm }
+    return pub(normalized, root, '04-DESeq2_NormCounts')
         .mix(pub(dge.vst_norm_counts, root, '04-DESeq2_NormCounts'))
         .mix(pub(dge.dge_table, root, '05-DESeq2_DGE'))
         .mix(pub(dge.contrasts, root, '05-DESeq2_DGE'))
@@ -471,6 +474,7 @@ workflow RNASEQ {
                 .mix( pub(FEATURECOUNTS.out.counts, ch_root, '03-FeatureCounts') )
                 .mix( pub(FEATURECOUNTS.out.summary, ch_root, '03-FeatureCounts') )
                 .mix( pub(QUANTIFY_FEATURECOUNTS_GENES.out.num_non_zero_genes, ch_root, '03-FeatureCounts') )
+                .mix( pub(QUANTIFY_FEATURECOUNTS_GENES.out.unnorm_counts, ch_root, '03-FeatureCounts') )
                 .mix( pub_mqc(COUNT_MULTIQC.out, ch_root, '03-FeatureCounts/MultiQC_Reports') )
         }
 
@@ -513,13 +517,19 @@ workflow RNASEQ {
                 REMOVE_RRNA_FEATURECOUNTS( counts, EXTRACT_RRNA.out.rrna_ids )
                 counts_rrnarm = REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm
                 DGE_DESEQ2_RRNA_RM( ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
-                ch_published = ch_published.mix( pub(REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
+                REMOVE_RRNA_FC_TABLE(QUANTIFY_FEATURECOUNTS_GENES.out.unnorm_counts, EXTRACT_RRNA.out.rrna_ids)
+                ch_published = ch_published
+                    .mix( pub(REMOVE_RRNA_FEATURECOUNTS.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
+                    .mix( pub(REMOVE_RRNA_FC_TABLE.out.counts_rrnarm, ch_root, '03-FeatureCounts') )
             } else {
                 DGE_DESEQ2( ch_meta, gene_annotations, runsheet_path, genes_results.map { row -> row[1] } | collect, dge_script, "" )
                 REMOVE_RRNA( EXTRACT_RRNA.out.rrna_ids, genes_results )
                 counts_rrnarm = REMOVE_RRNA.out.genes_results_rrnarm.map { _m, f -> f } | toSortedList
                 DGE_DESEQ2_RRNA_RM( ch_meta, gene_annotations, runsheet_path, counts_rrnarm, dge_script, "_rRNArm" )
-                ch_published = ch_published.mix( pub_by_meta(REMOVE_RRNA.out.genes_results_rrnarm, ch_root, '03-RSEM_Counts') )
+                REMOVE_RRNA_RSEM_TABLE(QUANTIFY_RSEM_GENES.out.publishables.map { unnorm, _nz -> unnorm }, EXTRACT_RRNA.out.rrna_ids)
+                ch_published = ch_published
+                    .mix( pub_by_meta(REMOVE_RRNA.out.genes_results_rrnarm, ch_root, '03-RSEM_Counts') )
+                    .mix( pub(REMOVE_RRNA_RSEM_TABLE.out.counts_rrnarm, ch_root, '03-RSEM_Counts') )
             }
 
             dge_table = DGE_DESEQ2.out.dge_table
@@ -616,7 +626,7 @@ workflow RNASEQ {
                 runsheet_path,
                 count_mqc_zip,
                 counts_rrnarm,
-                rsem_publishables
+                rsem_publishables.combine(REMOVE_RRNA_RSEM_TABLE.out.counts_rrnarm)
             )
             vv_logs = vv_logs.mix(VV_RSEM_COUNTS.out.log)
             ch_versions = ch_versions.mix(VV_RSEM_COUNTS.out.versions)
@@ -629,7 +639,7 @@ workflow RNASEQ {
                 ch_meta,
                 runsheet_path,
                 count_mqc_zip,
-                counts_rrnarm
+                counts_rrnarm.combine(REMOVE_RRNA_FC_TABLE.out.counts_rrnarm)
             )
             vv_logs = vv_logs.mix(VV_FEATURECOUNTS.out.log)
             ch_versions = ch_versions.mix(VV_FEATURECOUNTS.out.versions)
