@@ -16,7 +16,6 @@ process REMOVE_RRNA_FEATURECOUNTS {
 
     output:
         path("FeatureCounts_rRNArm${params.assay_suffix}.tsv"), emit: counts_rrnarm
-        path("rRNA_counts.txt"), emit: rrnarm_summary
 
     script:
         """
