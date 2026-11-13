@@ -3,7 +3,6 @@ include { STAGE } from './subworkflows/stage.nf'
 
 include { GENERATE_MD5SUMS } from './modules/generate_md5sums.nf'
 include { UPDATE_ASSAY_TABLE } from './modules/update_assay_table.nf'
-include { PUBLISH_STAGED_ANALYSIS } from './modules/publish_staged_analysis.nf'
 
 def dp_tools_plugin() {
     return params.dp_tools_plugin
@@ -73,10 +72,6 @@ workflow STAGE_ONLY {
             params.isa_archive_path ? channel.fromPath(params.isa_archive_path) : null,
             params.runsheet_path ? channel.fromPath(params.runsheet_path) : null,
             channel.value(params.api_url)
-        )
-        PUBLISH_STAGED_ANALYSIS(
-            STAGE.out.ch_outdir,
-            STAGE.out.raw_reads.map { sample -> sample[1] }.collect()
         )
 }
 

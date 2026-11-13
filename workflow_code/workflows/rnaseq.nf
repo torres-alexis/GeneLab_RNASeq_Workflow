@@ -110,9 +110,6 @@ workflow RNASEQ {
         if ( microbes && ep == 'genes_results' ) {
             error "entry_point 'genes_results' is eukaryotic-only (RSEM). Use counts_table for microbes."
         }
-        if ( !(ep in ['raw_reads', 'trimmed_reads', 'bam_files', 'genes_results', 'counts_table', 'dge_table']) ) {
-            error "Unknown entry_point '${ep}'"
-        }
         if ( ep == 'bam_files' && !strandedness_set() ) {
             error "--strandedness is required for entry_point bam_files (none, forward, or reverse)"
         }

@@ -159,7 +159,7 @@
         "stage_only": {
           "type": "boolean",
           "default": false,
-          "description": "Publish the runsheet and raw reads, then exit."
+          "description": "Publish the runsheet and staged inputs for the current entry point, then exit. truncate_to applies to raw and trimmed reads."
         },
         "post_processing": {
           "type": "boolean",
