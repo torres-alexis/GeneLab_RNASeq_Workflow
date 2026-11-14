@@ -401,7 +401,7 @@ The outputs from the Analysis Staging and V&V Pipeline Subworkflows are describe
 **Analysis Staging Subworkflow**
 
    - Output:
-     - Metadata/\*_bulkRNASeq_v2_runsheet.csv (metadata required for processing, including input file locations for the selected `--entry_point`)
+     - Metadata/\*_bulkRNASeq_v6_runsheet.csv (metadata required for processing, including input file locations for the selected `--entry_point`)
      - Metadata/\*-ISA.zip (the ISA archive of the OSD datasets to be processed, downloaded from the OSDR)
    
    

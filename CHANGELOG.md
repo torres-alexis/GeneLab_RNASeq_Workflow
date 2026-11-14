@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update process resource allocations and walltimes. Leave local walltime unset and cap PBS Pro tasks at eight hours.
 - Enable scratch staging for Slurm and PBS Pro processes.
 - Update the `dp_tools` image to `1.3.8-slim`.
+- Bump the dp_tools plugin runsheet schema version from 2 to 6.
 - Normalize merged-sequence assay fields and remove empty ontology-column pairs.
 - Stop generating unused rRNA-removal summary files.
 

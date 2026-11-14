@@ -7,9 +7,9 @@ The Runsheet is a csv file that contains the metadata required for processing bu
 
 ## Examples
 
-1. [Runsheet for GLDS-48](single_end_runsheet/GLDS-48_bulkRNASeq_v1_runsheet.csv) (single end dataset)
-2. [Runsheet for GLDS-194](paired_end_runsheet/GLDS-194_bulkRNASeq_v1_runsheet.csv) (paired end dataset)
-3. [Runsheet for GLDS-605](paired_end_runsheet/GLDS-605_bulkRNASeq_v2_runsheet.csv) (paired end dataset with technical replicates)
+1. [Runsheet for GLDS-48](single_end_runsheet/GLDS-48_bulkRNASeq_v6_runsheet.csv) (single end dataset)
+2. [Runsheet for GLDS-194](paired_end_runsheet/GLDS-194_bulkRNASeq_v6_runsheet.csv) (paired end dataset)
+3. [Runsheet for GLDS-605](paired_end_runsheet/GLDS-605_bulkRNASeq_v6_runsheet.csv) (paired end dataset with technical replicates)
 
 
 
