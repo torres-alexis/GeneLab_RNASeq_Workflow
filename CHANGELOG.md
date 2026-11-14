@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exclude samples with at least 60% RSEM unalignable reads before DGE by default for raw-read, trimmed-read and BAM entry points in default mode. Configure with `--drop_unalignable` and `--unalignable_threshold`.
 - Publish unnormalized counts in the RSEM or FeatureCounts `03` directory, and normalized/VST counts in `04`.
 - Publish standard SampleTable and contrasts files only; reuse them for rRNA-removed DGE validation.
-- Have `ALIGN_STAR` emit `*_Aligned.out.bam`. Convert Bowtie2 SAM to BAM in a separate step before sorting.
+- Have `ALIGN_STAR` emit unsorted genomic BAMs to avoid sorting twice.
+- Move Bowtie2 SAM-to-BAM conversion and unmapped-read filtering into `SAM_TO_BAM`.
 - Run FASTQ validation per file and raw/processed checksum generation in parallel.
 - Update process resource allocations and walltimes. Leave local walltime unset and cap PBS Pro tasks at eight hours.
 - Enable scratch staging for Slurm and PBS Pro processes.
