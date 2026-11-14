@@ -1,86 +1,33 @@
 #!/usr/bin/env python3
-"""ISA mix gate + run combined_ercc_analysis.ipynb (python → R → python)."""
+"""Runsheet ERCC_mix gate + run combined_ercc_analysis.ipynb (python → R → python)."""
 
 import argparse
 import csv
-import io
 import json
 import re
 import subprocess
-import zipfile
 from pathlib import Path
 
-RNASEQ_MEASUREMENT = "transcription profiling"
-RNASEQ_TECHNOLOGY = "RNA Sequencing (RNA-Seq)"
-MIX_COL = "parameter value[spike-in mix number]"
+MIX_COL = "ERCC_mix"
 EXPECTED_MIXES = ("Mix 1", "Mix 2")
 USES_KERNEL = re.compile(r"Uses \*\*(python|R)\*\* kernel", re.I)
 PY_KERNEL = "python3"
 R_KERNEL = "ir"
 
 
-def _is_section_header(line):
-    return bool(line) and "\t" not in line and line == line.upper() and any(c.isalpha() for c in line)
-
-
-def _isa_section(text, header):
-    table = {}
-    in_section = False
-    for raw in text.splitlines():
-        line = raw.strip()
-        if line == header:
-            in_section = True
-            continue
-        if in_section and (not line or (_is_section_header(line) and line != header)):
-            break
-        if in_section:
-            parts = line.split("\t")
-            if parts and parts[0]:
-                table[parts[0]] = [v.strip() for v in parts[1:]]
-    return table
-
-
-def isa_sample_and_assay(zip_path):
-    with zipfile.ZipFile(zip_path) as zf:
-        members = zf.namelist()
-        i_file = next(m for m in members if Path(m).name.lower().startswith("i_") and m.endswith(".txt"))
-        assays = _isa_section(zf.read(i_file).decode("utf-8"), "STUDY ASSAYS")
-        assay_name = next(
-            fn
-            for meas, tech, fn in zip(
-                assays["Study Assay Measurement Type"],
-                assays["Study Assay Technology Type"],
-                assays["Study Assay File Name"],
+def check_runsheet_mixes(runsheet):
+    with open(runsheet, newline="", encoding="utf-8-sig") as fh:
+        reader = csv.DictReader(fh)
+        if MIX_COL not in (reader.fieldnames or []):
+            return (
+                f"Runsheet {Path(runsheet).name} has no '{MIX_COL}' column; it is required when has_ERCC is true. "
+                f"Columns: {list(reader.fieldnames or [])}"
             )
-            if meas.lower() == RNASEQ_MEASUREMENT.lower() and tech.lower() == RNASEQ_TECHNOLOGY.lower()
-        )
-        sample_file = next(m for m in members if Path(m).name.startswith("s_") and m.endswith(".txt"))
-        assay_file = next(m for m in members if Path(m).name == Path(assay_name).name)
-        return sample_file, assay_file
-
-
-def _mix_col(headers):
-    for h in headers or []:
-        if h and h.strip().lower() == MIX_COL:
-            return h
-    return None
-
-
-def check_assay_mixes(zip_path, assay_member):
-    with zipfile.ZipFile(zip_path) as zf:
-        with zf.open(assay_member) as fh:
-            reader = csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8"), delimiter="\t")
-            col = _mix_col(reader.fieldnames)
-            if not col:
-                return (
-                    f"Assay table {assay_member} has no 'Parameter Value[Spike-in Mix Number]' column. "
-                    f"Columns: {list(reader.fieldnames or [])}"
-                )
-            observed = {
-                (row.get(col) or "").strip()
-                for row in reader
-                if (row.get(col) or "").strip()
-            }
+        rows = list(reader)
+    blank = [r.get("Sample Name") for r in rows if not (r.get(MIX_COL) or "").strip()]
+    if blank:
+        return f"Runsheet column '{MIX_COL}' is blank for samples: {blank}"
+    observed = {(r.get(MIX_COL) or "").strip() for r in rows}
     missing = [m for m in EXPECTED_MIXES if m not in observed]
     extra = sorted(observed - set(EXPECTED_MIXES))
     if not missing and not extra:
@@ -91,7 +38,7 @@ def check_assay_mixes(zip_path, assay_member):
     if extra:
         bits.append(f"unexpected values {extra}")
     return (
-        f"Assay table {assay_member} column '{col}' is not Mix 1 + Mix 2: "
+        f"Runsheet column '{MIX_COL}' must be 'Mix 1' or 'Mix 2': "
         f"{'; '.join(bits)}. Observed: {sorted(observed)}"
     )
 
@@ -132,7 +79,7 @@ def _r_assign(src, name, value):
 
 def patch_cell_source(src, ctx):
     src = _py_assign(src, "accession", ctx["accession"])
-    src = _py_assign(src, "isaPath", ctx["isa"])
+    src = _py_assign(src, "runsheetPath", ctx["runsheet"])
     src = _py_assign(src, "UnnormalizedCountsPath", ctx["counts"])
     src = _py_assign(src, "GENE_ID_PREFIX", ctx["gene_id_prefix"])
     src = _py_assign(src, "assay_suffix", ctx["assay_suffix"])
@@ -249,7 +196,7 @@ def execute_notebook(nb_path, out_path, ctx, timeout=600):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--accession", default="")
-    p.add_argument("--isa", default="")
+    p.add_argument("--runsheet", default="")
     p.add_argument("--assay-suffix", default="_GLbulkRNAseq")
     p.add_argument("--counts", default="")
     p.add_argument("--gene-id-prefix", default="")
@@ -261,25 +208,20 @@ def main():
     def _empty(v):
         return v if v not in ("", "[]", "null") else ""
 
-    isa = _empty(args.isa)
+    runsheet = _empty(args.runsheet)
     counts = _empty(args.counts)
     ercc_table = _empty(args.ercc_table)
-    sample_file = assay_file = ""
-    mix_error = None
-    if not isa:
-        mix_error = "No ISA archive; cannot read Parameter Value[Spike-in Mix Number]."
+    if not runsheet:
+        mix_error = "No runsheet; cannot read ERCC_mix."
     else:
         try:
-            sample_file, assay_file = isa_sample_and_assay(isa)
-            mix_error = check_assay_mixes(isa, assay_file)
+            mix_error = check_runsheet_mixes(runsheet)
         except Exception as e:
             mix_error = str(e) or type(e).__name__
 
     lines = [
         f"accession={args.accession}",
-        f"isaPath={isa}",
-        f"sample_file={sample_file}",
-        f"assay_file={assay_file}",
+        f"runsheetPath={runsheet}",
         f"assay_suffix={args.assay_suffix}",
         f"UnnormalizedCountsPath={counts}",
         f"GENE_ID_PREFIX={args.gene_id_prefix}",
@@ -302,7 +244,7 @@ def main():
 
     ctx = {
         "accession": args.accession,
-        "isa": isa,
+        "runsheet": runsheet,
         "assay_suffix": args.assay_suffix,
         "counts": counts,
         "gene_id_prefix": args.gene_id_prefix,

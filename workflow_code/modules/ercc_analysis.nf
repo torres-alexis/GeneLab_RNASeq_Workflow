@@ -2,7 +2,7 @@ process ERCC_ANALYSIS {
     input:
         val(has_ercc)
         val(accession)
-        path(isa_zip)
+        path(runsheet)
         val(assay_suffix)
         path(counts)
         val(organism)
@@ -40,7 +40,7 @@ process ERCC_ANALYSIS {
         mkdir -p "\$JUPYTER_RUNTIME_DIR"
         ercc_kernels.py \\
             --accession '${accession}' \\
-            --isa '${isa_zip}' \\
+            --runsheet '${runsheet}' \\
             --assay-suffix '${assay_suffix}' \\
             --counts '${counts}' \\
             --gene-id-prefix '${gene_id_prefix}' \\

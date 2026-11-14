@@ -452,7 +452,7 @@ Standard Nextflow resource usage logs are also produced as follows:
 # ERCC Analysis Workflow
 
 > [!NOTE]
-> The workflow runs the ERCC analysis automatically in `--mode default` when `has_ERCC` is true and the selected entry point produces or imports raw counts (not `dge_table`). ISA metadata identifying each sample’s spike-in mix is required; with a user-supplied runsheet, provide `--isa_archive_path`.
+> The workflow runs the ERCC analysis automatically in `--mode default` when the runsheet `has_ERCC` column is true and the selected entry point produces or imports raw counts (not `dge_table`). Each sample’s spike-in mix is read from the runsheet `ERCC_mix` column (`Mix 1` or `Mix 2`).
 
 ## Running ERCC Analysis
 

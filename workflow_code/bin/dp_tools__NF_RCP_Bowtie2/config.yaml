@@ -65,6 +65,17 @@ Staging:
             determined from the ISA archive as well based on 'Study Protocol Name' and 'Study Protocol Type'
           Example: 'TRUE'
 
+        - ISA Field Name:
+            - Parameter Value[Spike-in Mix Number]
+            - Parameter Value[spike-in mix number]
+          ISA Table Source: Assay
+          Runsheet Column Name: ERCC_mix
+          Optional: true
+          Processing Usage: >-
+            ERCC spike-in mix added to each sample. Required for every sample when has_ERCC is true;
+            dropped from the runsheet when has_ERCC is false.
+          Example: Mix 1
+
         - ISA Field Name: 
             - Characteristics[Organism]
             - Characteristics[organism]

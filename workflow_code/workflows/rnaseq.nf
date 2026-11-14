@@ -611,7 +611,7 @@ workflow RNASEQ {
             ERCC_ANALYSIS(
                 ch_meta.map { meta -> meta.has_ercc },
                 STAGE.out.glds_accession.ifEmpty( params.accession ?: '' ),
-                isa_archive.ifEmpty { [] },
+                runsheet_path,
                 channel.value( params.assay_suffix ),
                 ercc_counts,
                 ch_meta.map { meta -> meta.organism_sci },

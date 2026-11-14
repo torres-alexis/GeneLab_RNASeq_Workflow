@@ -18,7 +18,7 @@ The Runsheet is a csv file that contains the metadata required for processing bu
 | Column Name | Type | Description | Example |
 |:------------|:-----|:------------|:--------|
 | Sample Name | string | Sample Name, added as a prefix to sample-specific processed data output files. Should not include spaces or weird characters. | Mmus_BAL-TAL_LRTN_BSL_Rep1_B7 |
-| has_ERCC | bool | Set to True if ERCC spike-ins are included. Concatenates ERCC sequences onto the reference. For `--mode default`, also runs ERCC analysis after quantification (requires ISA metadata). | True |
+| has_ERCC | bool | Set to True if ERCC spike-ins are included. Concatenates ERCC sequences onto the reference. For `--mode default`, also runs ERCC analysis after quantification (requires `ERCC_mix`). | True |
 | paired_end | bool | Set to True if the samples were sequenced as paired-end. If set to False, samples are assumed to be single-end. | False |
 | organism | string | Species name used to map to the appropriate gene annotations file. Supported species can be found in the `species` column of the [GL-DPPD-7110-A_annotations.csv](https://github.com/nasa/GeneLab_Data_Processing/blob/master/GeneLab_Reference_Annotations/Pipeline_GL-DPPD-7110_Versions/GL-DPPD-7110-A/GL-DPPD-7110-A_annotations.csv) file. | Mus musculus |
 | read1_path | string (url or local path) | Location of the raw reads file. For paired-end data, this specifies the forward reads fastq.gz file. | /my/data/sample_1.fastq.gz |
@@ -44,4 +44,5 @@ For entry points other than the default `raw_reads`, include the relevant column
 | Column Name | Type | Description | Example |
 |:------------|:-----|:------------|:--------|
 | Source Name | string | Identifier linking samples. Used for handling technical replicates during differential gene expression analysis. Multiple samples with the same Source Name may be collapsed during analysis depending on the Has Tech Reps setting. | RR3_BSL_B7 |
+| ERCC_mix | string | ERCC spike-in mix added to the sample, copied from the ISA assay table `Parameter Value[Spike-in Mix Number]`. Required when `has_ERCC` is True; omitted when `has_ERCC` is False. | Mix 1 |
 | Has Tech Reps | bool | Indicates whether this sample is a technical replicate that should be collapsed with other samples sharing the same Source Name. Set to True for technical replicates that should be collapsed, False for distinct samples that should remain separate even if they share a Source Name. | False |

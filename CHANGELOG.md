@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support local and mixed local/remote FASTA and GTF references.
 - Run applicable ERCC spike-in analysis after RSEM quantification; publish notebooks, HTML and tables under `ERCC_Analysis`.
 - Publish `qc_validation*.txt` and DGE sign-mismatch reports when generated.
+- Add `ERCC_mix` to generated runsheets for ERCC datasets, from ISA `Parameter Value[Spike-in Mix Number]`. ERCC analysis reads each sample's mix from this column.
 
 ### Changed
 
