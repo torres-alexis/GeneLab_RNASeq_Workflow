@@ -85,6 +85,7 @@ process FETCH_TABLE {
 process FETCH_COUNTS_TABLE {
     input:
         val(uri)
+        path("samples.txt")
 
     output:
         path("*Unnormalized_Counts*.csv"), emit: counts_table
@@ -94,19 +95,23 @@ process FETCH_COUNTS_TABLE {
             "FeatureCounts_Unnormalized_Counts${params.assay_suffix}.csv" :
             "RSEM_Unnormalized_Counts${params.assay_suffix}.csv"
         """
-        fetch_uri.sh '${uri}' ${counts_name}
+        fetch_uri.sh '${uri}' input.csv
+        order_table_samples.py --input input.csv --output ${counts_name} --samples samples.txt
         """
 }
 
 process FETCH_DGE_TABLE {
     input:
         val(uri)
+        path("samples.txt")
+        path("runsheet.csv")
 
     output:
         path("differential_expression${params.assay_suffix}.csv"), emit: dge_table
 
     script:
         """
-        fetch_uri.sh '${uri}' differential_expression${params.assay_suffix}.csv
+        fetch_uri.sh '${uri}' input.csv
+        order_table_samples.py --input input.csv --output differential_expression${params.assay_suffix}.csv --samples samples.txt --runsheet runsheet.csv
         """
 }

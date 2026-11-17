@@ -90,7 +90,7 @@ write.csv(counts, file = unnorm_file)
 
 # Count number of genes with non-zero counts for each sample
 log_message("Counting number of genes with non-zero counts for each sample...")
-NumNonZeroGenes <- colSums(data > 0)
+NumNonZeroGenes <- colSums(counts > 0)
 NumNonZeroGenes <- data.frame(
   "Sample" = names(NumNonZeroGenes),
   "Number_of_genes_with_non_zero_counts" = NumNonZeroGenes,

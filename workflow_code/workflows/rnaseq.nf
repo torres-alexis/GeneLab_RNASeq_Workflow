@@ -583,7 +583,13 @@ workflow RNASEQ {
         }
 
         if ( microbes && ep in ['raw_reads', 'trimmed_reads', 'bam_files'] ) {
-            def bam_list = ep == 'bam_files' ? (strandedness_set() ? STAGE.out.bam_files : paired_counting_bams).map { row -> row[1] }.collect() : bam_only_files
+            def counting_bams = ep == 'bam_files' ? (strandedness_set() ? STAGE.out.bam_files : paired_counting_bams) : sorted_bam
+            def bam_list = counting_bams.toList().map { rows -> [rows] }
+                .combine(samples_txt)
+                .map { rows, sample_file ->
+                    def sample_order = sample_file.readLines()
+                    rows.sort { row -> sample_order.indexOf(row[0].id) }.collect { row -> row[1] }
+                }
             GET_GTF_FEATURES( genome_references )
             gtf_features = GET_GTF_FEATURES.out.gtf_features.map { f -> f.text.trim() }
             FEATURECOUNTS( ch_meta, genome_references, gtf_features, strandedness, bam_list )

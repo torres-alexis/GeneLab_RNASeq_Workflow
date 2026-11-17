@@ -2,6 +2,7 @@ process COPY_COUNTS_TABLE {
 
     input:
         path("?.csv")
+        path("samples.txt")
 
     output:
         path("*Unnormalized_Counts*.csv"), emit: counts_table
@@ -11,7 +12,7 @@ process COPY_COUNTS_TABLE {
             "FeatureCounts_Unnormalized_Counts${params.assay_suffix}.csv" :
             "RSEM_Unnormalized_Counts${params.assay_suffix}.csv"
         """
-        cp -P 1.csv ${counts_name}
+        order_table_samples.py --input 1.csv --output ${counts_name} --samples samples.txt
         """
 }
 

@@ -16,9 +16,6 @@ process FEATURECOUNTS {
     def pairedOption = meta.paired_end ? "-p --countReadPairs -d 10 -D 1000 -P -B" : ""
     def strandOption = (strandedness == "unstranded") ? 0 : (strandedness == "sense") ? 1 : 2
     """
-    # Build a list of BAM files
-    bam_list=\$(ls *.bam | tr '\n' ' ')
-
     # Get all unique feature types in the reference GTF file
     GTF_FEATURES=\$(grep -v '^#' "${genomeGtf}" | cut -f3 | sort | uniq | tr '\n' ',' | sed 's/,\$//')
 
@@ -32,7 +29,7 @@ process FEATURECOUNTS {
       -M \\
       --fraction \\
       -o "FeatureCounts${params.assay_suffix}.tsv" \\
-      \$bam_list
+      ${bam_files}
 
     # Clean up sample/column names: remove .bam extensions and assay_suffix
     sed -i -E "2s/(_sorted)?\\.bam//g; 2s/${params.assay_suffix}//g" FeatureCounts${params.assay_suffix}.tsv

@@ -17,12 +17,8 @@ workflow STAGE_READS {
         ch_reads = FETCH_READS.out.reads.mix( COPY_READS.out.reads )
 
         ch_reads | map { sample -> sample[1] } | collect | set { ch_all_reads }
-        ch_reads | map { sample -> sample[0].id }
-                        | collectFile(name: "samples.txt", sort: true, newLine: true)
-                        | set { samples_txt }
 
     emit:
         reads = ch_reads
         ch_all_reads = ch_all_reads
-        samples_txt = samples_txt
 }

@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep sample columns and per-sample summary rows in runsheet order.
+- Match sample names containing dots correctly when reading STAR and RSEM counts.
 - Use the configured DESeq2 backend for the LRT step.
 - Fix DESeq2 BiocParallel backend handling.
 - Publish the runsheet and available ISA archive once for every entry point.
