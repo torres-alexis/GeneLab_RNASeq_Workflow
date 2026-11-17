@@ -1,4 +1,6 @@
 process UPDATE_ASSAY_TABLE {
+    cache false
+
     input:
         tuple path(ch_processed_directory), val(accession), val(mode), val(suffix)
     output:

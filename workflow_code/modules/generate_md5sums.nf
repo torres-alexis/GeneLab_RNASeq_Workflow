@@ -1,4 +1,6 @@
 process GENERATE_MD5SUMS {
+    cache false
+
     tag { type }
 
     input:
