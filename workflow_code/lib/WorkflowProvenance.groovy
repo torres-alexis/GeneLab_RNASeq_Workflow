@@ -142,13 +142,15 @@ class WorkflowProvenance {
         }
     }
 
-    static Map postRecord(Path output, String accession) {
+    static Map postRecord(Path output, String accession, List aliases = []) {
         def current = output.resolve('processing_info/workflow_run.json')
         if (!Files.isRegularFile(current)) return null
         def run = new JsonSlurper().parseText(Files.readString(current))
         def requested = accession?.toUpperCase()
+        def requested_accessions = ([requested] + aliases).findAll { it }
+            .collectMany { it.split(',').collect { id -> id.trim().toUpperCase() } }
         def matches = requested
-            ? requested in [run.accession?.toUpperCase(), run.output_root?.toUpperCase()]
+            ? requested_accessions.any { it in [run.accession?.toUpperCase(), run.output_root?.toUpperCase()] }
             : !run.accession
         if (!matches) return null
         if (run.containsKey('capture_status') && run.capture_status != 'complete')

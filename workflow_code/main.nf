@@ -124,41 +124,52 @@ workflow STAGE_ONLY {
 workflow POST_PROCESSING {
     main:
         print_banner()
-        def record = WorkflowProvenance.postRecord(workflow.outputDir, params.accession as String)
-        if (record?.output_root) {
-            ch_root = channel.value(record.output_root)
-        } else if (params.accession?.toString()?.toUpperCase()?.startsWith('OSD-')) {
-            GET_POST_ACCESSIONS(channel.value(params.accession), channel.value(params.api_url))
-            ch_root = GET_POST_ACCESSIONS.out.accessions_txt.map { txt -> txt.readLines()[1].trim() }
+        def requested = params.accession?.toString()?.toUpperCase()
+        def current_records = workflow.outputDir.resolve('processing_info')
+        def current_record = current_records.resolve('workflow_run.json')
+        def record = WorkflowProvenance.postRecord(workflow.outputDir, requested)
+        def stored_root = !record && current_record.exists()
+            ? new groovy.json.JsonSlurper().parseText(current_record.text).output_root?.toString()?.toUpperCase()
+            : null
+        def different_root = (requested ==~ /GLDS-\d+/) && (stored_root ==~ /GLDS-\d+/) && requested != stored_root
+        if (requested && ((!record && current_record.exists() && !different_root) ||
+                          (requested.startsWith('OSD-') && !record?.output_root))) {
+            GET_POST_ACCESSIONS(channel.value(requested), channel.value(params.api_url))
+            ch_run = GET_POST_ACCESSIONS.out.accessions_txt.map { txt ->
+                def accessions = txt.readLines().collect { it.trim() }
+                def matched = record ?: WorkflowProvenance.postRecord(workflow.outputDir, requested, accessions)
+                [matched?.output_root ?: accessions[1], matched]
+            }
         } else {
-            ch_root = channel.value(params.accession?.toString()?.toUpperCase() ?: 'results')
+            ch_run = channel.value([record?.output_root ?: requested ?: 'results', record])
         }
-        ch_processed_directory = ch_root.map { root ->
-            file("${workflow.outputDir}/${root}", checkIfExists: true)
+        ch_context = ch_run.map { root, matched ->
+            def records = matched?.capture_status == 'complete'
+                ? current_records.resolve('runs').resolve(matched.run_name as String)
+                : current_records
+            def package_records = matched || (!current_record.exists() && records.resolve('samples.txt').exists())
+            [directory: file("${workflow.outputDir}/${root}", checkIfExists: true), root: root,
+             mode: matched?.containsKey('mode') ? matched.mode : params.mode,
+             suffix: matched?.containsKey('assay_suffix') ? matched.assay_suffix : params.assay_suffix,
+             records: package_records ? records : null]
         }
-        def suffix = record?.containsKey('assay_suffix') ? record.assay_suffix : params.assay_suffix
-        def mode = record?.containsKey('mode') ? record.mode : params.mode
-        UPDATE_ASSAY_TABLE(ch_processed_directory.combine(ch_root).filter { directory, root ->
-            root.startsWith('GLDS-')
-        }.map { directory, root -> [directory, root, mode, suffix] })
-        GENERATE_MD5SUMS(ch_processed_directory.combine(channel.of('raw', 'processed')).map { directory, type ->
-            [directory, type, suffix]
+        ch_root = ch_context.map { it.root }
+        UPDATE_ASSAY_TABLE(ch_context.filter { it.root.startsWith('GLDS-') }.map {
+            [it.directory, it.root, it.mode, it.suffix]
         })
+        GENERATE_MD5SUMS(ch_context.combine(channel.of('raw', 'processed')).map { context, type ->
+            [context.directory, type, context.suffix]
+        })
+        ch_package = ch_context.filter { it.records }
+        PACKAGE_PROCESSING_INFO(ch_package.map { it.records }, ch_package.map { it.suffix })
         ch_pub = UPDATE_ASSAY_TABLE.out.assay_table.flatten().combine(ch_root).map { f, root ->
             ["${root}/GeneLab/updated_curation_tables/${f.name}".toString(), f]
         }.mix(
-            GENERATE_MD5SUMS.out.md5sum.combine(ch_root).map { f, root -> ["${root}/GeneLab/${f.name}".toString(), f] }
-        )
-        def current_records = workflow.outputDir.resolve('processing_info')
-        def records = record?.capture_status == 'complete'
-            ? current_records.resolve('runs').resolve(record.run_name as String)
-            : current_records
-        if (record || (!current_records.resolve('workflow_run.json').exists() && records.resolve('samples.txt').exists())) {
-            PACKAGE_PROCESSING_INFO(records, suffix)
-            ch_pub = ch_pub.mix(PACKAGE_PROCESSING_INFO.out.zip.combine(ch_root).map { f, root ->
+            GENERATE_MD5SUMS.out.md5sum.combine(ch_root).map { f, root -> ["${root}/GeneLab/${f.name}".toString(), f] },
+            PACKAGE_PROCESSING_INFO.out.zip.combine(ch_root).map { f, root ->
                 ["${root}/GeneLab/${f.name}".toString(), f]
-            })
-        }
+            }
+        )
     emit:
         published = ch_pub
 }
