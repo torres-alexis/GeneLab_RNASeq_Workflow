@@ -177,7 +177,9 @@ workflow STAGE {
                 COPY_DGE_TABLE( file(params.dge_table_path) )
                 dge_table = COPY_DGE_TABLE.out.dge_table
             }
-            published = published.mix( pub(dge_table, ch_root, '05-DESeq2_DGE') )
+            if (params.stage_only?.toString()?.toBoolean()) {
+                published = published.mix( pub(dge_table, ch_root, '05-DESeq2_DGE') )
+            }
         } else if ( ep == 'raw_reads' ) {
             samples = PARSE_RUNSHEET.out.samples
             STAGE_READS( samples, channel.value("raw") )
@@ -226,7 +228,9 @@ workflow STAGE {
             FETCH_DGE_TABLE(ch_dge.remote)
             COPY_DGE_TABLE(ch_dge.local.map { p -> file(p) })
             dge_table = FETCH_DGE_TABLE.out.dge_table.mix( COPY_DGE_TABLE.out.dge_table )
-            published = published.mix( pub(dge_table, ch_root, '05-DESeq2_DGE') )
+            if (params.stage_only?.toString()?.toBoolean()) {
+                published = published.mix( pub(dge_table, ch_root, '05-DESeq2_DGE') )
+            }
         }
 
         PUBLISH_METADATA( runsheet_path, isa_archive.ifEmpty { [] } )
