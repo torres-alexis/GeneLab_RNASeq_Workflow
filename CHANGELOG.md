@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve input count tables during differential expression analysis.
 - Use the configured DESeq2 backend for the LRT step.
 - Fix DESeq2 BiocParallel backend handling.
 - Publish the runsheet and available ISA archive once for every entry point.
