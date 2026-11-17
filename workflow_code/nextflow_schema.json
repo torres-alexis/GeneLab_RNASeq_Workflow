@@ -192,7 +192,7 @@
         "post_processing": {
           "type": "boolean",
           "default": false,
-          "description": "Update the assay table and generate md5sums for ${outdir}/${accession}."
+          "description": "Package processing records, update the assay table and generate checksums for completed workflow outputs."
         },
         "strandedness": {
           "type": "string",
