@@ -143,10 +143,11 @@ def main():
         ancestors[root] = parents + (real_root,)
         for filename in files:
             filepath = os.path.join(root, filename)
-            if not should_include(filepath, outdir):
+            logical_path = "/" + os.path.relpath(filepath, outdir)
+            if not should_include(logical_path, outdir):
                 continue
             basename = os.path.basename(filepath)
-            if is_raw_file(filepath):
+            if is_raw_file(logical_path):
                 if not raw:
                     continue
                 md5sum = calculate_md5(filepath)
