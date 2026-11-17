@@ -93,6 +93,7 @@ Below is a description of each subworkflow and the additional output files gener
 5. [Workflow Outputs](#5-workflow-outputs)  
    5a. [Main outputs](#5a-main-outputs)  
    5b. [Resource logs](#5b-resource-logs)  
+6. [Post-processing](#6-post-processing)
 
 <br>
 
@@ -424,10 +425,11 @@ The outputs from the Analysis Staging and V&V Pipeline Subworkflows are describe
 **Processing Information Archive**
 
    - Output:
-     - GeneLab/processing_info_GLbulkRNAseq.zip (Archive containing workflow execution metadata)
+     - GeneLab/processing_info_GLbulkRNAseq.zip (archive containing workflow execution metadata, generated during post-processing)
        - processing_info/samples.txt (single column list of all sample names in the dataset)
-       - processing_info/nextflow_processing_info_GLbulkRNAseq.txt (Nextflow execution logs captured via `nextflow log`)
-       - processing_info/nextflow_run_command_GLbulkRNAseq.txt (Exact command line used to initiate the workflow)
+       - processing_info/nextflow_processing_info_GLbulkRNAseq.txt (workflow process commands and task statuses)
+       - processing_info/nextflow_run_command_GLbulkRNAseq.txt (exact command line used to initiate the workflow)
+       - processing_info/workflow_run.json (workflow settings and completion status)
 
 **QC metrics summary**
 
@@ -449,6 +451,29 @@ Standard Nextflow resource usage logs are also produced as follows:
      - Resource_Usage/pipeline_dag_{timestamp}.html (a visualization of the workflow process DAG)
 
 > Further details about these logs can also found within [this Nextflow documentation page](https://www.nextflow.io/docs/latest/tracing.html#execution-report).
+
+<br>
+
+---
+
+### 6. Post-processing
+
+After the main workflow completes, run post-processing with the same `--outdir` and accession:
+
+```bash
+nextflow run NF_RCP_2.1.1/main.nf -profile singularity,local \
+   --post_processing \
+   --accession OSD-194 \
+   --outdir .
+```
+
+For runsheet-only workflows, omit `--accession`. Keep the `processing_info/` directory created in `--outdir`; post-processing packages the completed run's records and uses its mode and assay suffix. Older outputs without captured records can still be used to generate checksums and update the assay table.
+
+   - Output:
+     - GeneLab/processing_info_GLbulkRNAseq.zip (workflow execution metadata)
+     - GeneLab/updated_curation_tables/a_*.txt (updated assay table, when an ISA archive and GLDS accession are available)
+     - GeneLab/raw_md5sum_GLbulkRNAseq.tsv (checksums for raw data files)
+     - GeneLab/processed_md5sum_GLbulkRNAseq.tsv (checksums for processed data files)
 
 <br>
 

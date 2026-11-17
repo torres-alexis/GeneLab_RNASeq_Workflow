@@ -825,4 +825,8 @@ workflow RNASEQ {
 
     emit:
         published = ch_published
+        processed_directory = ch_outdir
+        processing_samples = ep in ['counts_table', 'dge_table']
+            ? samples.map { meta -> meta.id }.collectFile(name: 'samples.txt', sort: true, newLine: true)
+            : samples_txt
 }

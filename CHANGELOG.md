@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Capture workflow commands, process scripts and sample names automatically; package completed records during post-processing.
+
 - Infer strandedness from genomic BAMs at BAM entry; default mode pairs them with transcriptome BAMs.
 - Add `--dge_parallel_config` and `--dge_parallel_cores` for DESeq2.
 - Add PBS Pro and Podman profiles.
@@ -41,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stop generating unused rRNA-removal summary files.
 
 ### Fixed
+
+- Resolve the completed GLDS or local results directory during post-processing.
 
 - Use the configured DESeq2 backend for the LRT step.
 - Fix DESeq2 BiocParallel backend handling.

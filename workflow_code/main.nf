@@ -1,6 +1,10 @@
 include { RNASEQ } from './workflows/rnaseq.nf'
 include { STAGE } from './subworkflows/stage.nf'
 
+include { CAPTURE_PROCESSING_RECORDS } from './modules/capture_processing_records.nf'
+include { PACKAGE_PROCESSING_INFO } from './modules/package_processing_info.nf'
+include { GET_ACCESSIONS as GET_POST_ACCESSIONS } from './modules/get_accessions.nf'
+
 include { GENERATE_MD5SUMS } from './modules/generate_md5sums.nf'
 include { UPDATE_ASSAY_TABLE } from './modules/update_assay_table.nf'
 
@@ -12,8 +16,12 @@ def dp_tools_plugin() {
             : "${projectDir}/bin/dp_tools__NF_RCP")
 }
 
+def enabled(value) {
+    return value != null && value.toString().toBoolean()
+}
+
 def print_banner() {
-    if (params.version) {
+    if (enabled(params.version)) {
         println """${workflow.manifest.name}
 Workflow Version: ${workflow.manifest.version}"""
         exit 0
@@ -35,28 +43,29 @@ Workflow Version: ${workflow.manifest.version}
     }
 }
 
-def as_list(x) {
-    if ( x == null ) return []
-    if ( x instanceof Collection && !(x instanceof CharSequence) ) return x as List
-    return [x]
-}
-
 workflow {
     main:
-        if (params.help || params.helpFull) {
+        if ((params.help && params.help.toString() != 'false') || enabled(params.helpFull)) {
             exit 0
         }
-        if (params.stage_only && params.post_processing) {
+        if (enabled(params.stage_only) && enabled(params.post_processing)) {
             error "Specify only one of --stage_only or --post_processing"
         }
-        if (params.stage_only) {
+        if (enabled(params.stage_only)) {
             STAGE_ONLY()
             ch_pub = STAGE_ONLY.out.published
-        } else if (params.post_processing) {
+        } else if (enabled(params.post_processing)) {
             POST_PROCESSING()
             ch_pub = POST_PROCESSING.out.published
         } else {
             print_banner()
+            def run = [run_name: workflow.runName, session_id: workflow.sessionId.toString(),
+                       command: workflow.commandLine, entry_point: params.entry_point,
+                       accession: params.accession, mode: params.mode, assay_suffix: params.assay_suffix,
+                       profile: workflow.profile, nextflow_version: nextflow.version.toString(),
+                       launch_dir: workflow.launchDir.toString(), project_dir: workflow.projectDir.toString(),
+                       work_dir: workflow.workDir.toString(), output_dir: workflow.outputDir.toString()]
+            if (!workflow.preview && !workflow.stubRun) WorkflowProvenance.begin(workflow.outputDir, run)
             RNASEQ(
                 channel.value(workflow.outputDir),
                 channel.value(dp_tools_plugin()),
@@ -69,9 +78,25 @@ workflow {
                 channel.value(params.derived_store_path)
             )
             ch_pub = RNASEQ.out.published
+            if (!workflow.preview && !workflow.stubRun) {
+                CAPTURE_PROCESSING_RECORDS(ch_pub.count(), workflow.outputDir, params.assay_suffix, run,
+                    RNASEQ.out.processing_samples, RNASEQ.out.processed_directory)
+            }
         }
     publish:
         published = ch_pub
+    onComplete:
+        if (!workflow.preview && !workflow.stubRun &&
+            !enabled(params.post_processing) && !enabled(params.stage_only) &&
+            (!params.help || params.help.toString() == 'false') && !enabled(params.helpFull) && !enabled(params.version)) {
+            try {
+                WorkflowProvenance.finish(workflow.outputDir, workflow.runName, workflow.sessionId.toString(),
+                    workflow.success && !(workflow.failOnIgnore && workflow.stats.ignoredCount > 0))
+            } catch (Exception e) {
+                log.error "Could not finalize processing records: ${e.message}"
+                nextflow.Global.session.abort(e)
+            }
+        }
 }
 
 output {
@@ -99,15 +124,41 @@ workflow STAGE_ONLY {
 workflow POST_PROCESSING {
     main:
         print_banner()
-        ch_processed_directory = channel.fromPath("${workflow.outputDir}/${params.accession}", checkIfExists: true)
-        UPDATE_ASSAY_TABLE(ch_processed_directory)
-        GENERATE_MD5SUMS(ch_processed_directory.combine(channel.of('raw', 'processed')))
-        def root = params.accession
-        ch_pub = UPDATE_ASSAY_TABLE.out.assay_table.flatMap { f ->
-            as_list(f).collect { x -> ["${root}/GeneLab/updated_curation_tables/${x.name}".toString(), x] }
+        def record = WorkflowProvenance.postRecord(workflow.outputDir, params.accession as String)
+        if (record?.output_root) {
+            ch_root = channel.value(record.output_root)
+        } else if (params.accession?.toString()?.toUpperCase()?.startsWith('OSD-')) {
+            GET_POST_ACCESSIONS(channel.value(params.accession), channel.value(params.api_url))
+            ch_root = GET_POST_ACCESSIONS.out.accessions_txt.map { txt -> txt.readLines()[1].trim() }
+        } else {
+            ch_root = channel.value(params.accession?.toString()?.toUpperCase() ?: 'results')
+        }
+        ch_processed_directory = ch_root.map { root ->
+            file("${workflow.outputDir}/${root}", checkIfExists: true)
+        }
+        def suffix = record?.containsKey('assay_suffix') ? record.assay_suffix : params.assay_suffix
+        def mode = record?.containsKey('mode') ? record.mode : params.mode
+        UPDATE_ASSAY_TABLE(ch_processed_directory.combine(ch_root).filter { directory, root ->
+            root.startsWith('GLDS-')
+        }.map { directory, root -> [directory, root, mode, suffix] })
+        GENERATE_MD5SUMS(ch_processed_directory.combine(channel.of('raw', 'processed')).map { directory, type ->
+            [directory, type, suffix]
+        })
+        ch_pub = UPDATE_ASSAY_TABLE.out.assay_table.flatten().combine(ch_root).map { f, root ->
+            ["${root}/GeneLab/updated_curation_tables/${f.name}".toString(), f]
         }.mix(
-            GENERATE_MD5SUMS.out.md5sum.map { f -> ["${root}/GeneLab/${f.name}".toString(), f] }
+            GENERATE_MD5SUMS.out.md5sum.combine(ch_root).map { f, root -> ["${root}/GeneLab/${f.name}".toString(), f] }
         )
+        def current_records = workflow.outputDir.resolve('processing_info')
+        def records = record?.capture_status == 'complete'
+            ? current_records.resolve('runs').resolve(record.run_name as String)
+            : current_records
+        if (record || (!current_records.resolve('workflow_run.json').exists() && records.resolve('samples.txt').exists())) {
+            PACKAGE_PROCESSING_INFO(records, suffix)
+            ch_pub = ch_pub.mix(PACKAGE_PROCESSING_INFO.out.zip.combine(ch_root).map { f, root ->
+                ["${root}/GeneLab/${f.name}".toString(), f]
+            })
+        }
     emit:
         published = ch_pub
 }
