@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Resolve the completed GLDS or local results directory during post-processing.
+- Refresh assay tables and checksums when post-processing is resumed.
+- Fix checksum generation for published outputs.
+- Limit publication modes to copy, copyNoFollow, link and symlink.
 
 - Use the configured DESeq2 backend for the LRT step.
 - Fix DESeq2 BiocParallel backend handling.

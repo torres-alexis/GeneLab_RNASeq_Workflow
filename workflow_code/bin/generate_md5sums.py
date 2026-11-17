@@ -20,8 +20,10 @@ def calculate_md5(filepath):
                 md5_hash.update(chunk)
         return md5_hash.hexdigest()
     except Exception as e:
-        sys.stderr.write(f"Error calculating MD5 for {filepath}: {str(e)}\n")
-        return "ERROR"
+        raise OSError(f"Error calculating MD5 for {filepath}: {e}") from e
+
+def raise_walk_error(error):
+    raise error
 
 def is_raw_file(filepath):
     """Check if file is a raw FASTQ or raw multiqc file (zip or html)."""
@@ -132,7 +134,13 @@ def main():
     processed_count = 0
 
     print(f"Scanning directory: {outdir}")
-    for root, _, files in os.walk(outdir):
+    ancestors = {}
+    for root, _, files in os.walk(outdir, followlinks=True, onerror=raise_walk_error):
+        real_root = os.path.realpath(root)
+        parents = ancestors.get(os.path.dirname(root), ())
+        if real_root in parents:
+            raise OSError(f"Directory symlink cycle: {root}")
+        ancestors[root] = parents + (real_root,)
         for filename in files:
             filepath = os.path.join(root, filename)
             if not should_include(filepath, outdir):

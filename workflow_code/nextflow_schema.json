@@ -139,7 +139,7 @@
         "publish_dir_mode": {
           "type": "string",
           "default": "link",
-          "enum": ["copy", "copyNoFollow", "link", "move", "relink", "symlink"],
+          "enum": ["copy", "copyNoFollow", "link", "symlink"],
           "description": "Nextflow publishdir mode."
         }
       },
