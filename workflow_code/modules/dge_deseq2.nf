@@ -6,7 +6,7 @@
 process DGE_DESEQ2 {
 
     input:
-        tuple val(meta), path(gene_annotations), val(output_label), path(runsheet_path), path(gene_counts)
+        tuple val(meta), path(gene_annotations), val(output_label), path(runsheet_path), path(gene_counts, stageAs: 'counts_input/*')
         path("dge_deseq2.Rmd")
 
     output:
