@@ -32,12 +32,12 @@ For entry points other than the default raw_reads, include the relevant columns 
 
 | Column Name | Entry Point | Type | Description | Example |
 |:------------|:------------|:-----|:------------|:--------|
-| trimmed_read1_path | trimmed_reads | string | Path to trimmed forward reads file | /my/data/sample_1_trimmed.fastq.gz |
-| trimmed_read2_path | trimmed_reads | string | Path to trimmed reverse reads file (paired-end only) | /my/data/sample_2_trimmed.fastq.gz |
-| bam_path | bam_files | string | Path or URL to the aligned BAM: transcriptome BAM for `--mode default`, genomic BAM for `--mode microbes`. For default mode with `--strandedness auto`, also include "genome_bam_path" with the matching genomic BAM for the same sample. | /my/data/sample_aligned.bam |
-| genes_results_path | genes_results | string | Path or URL to RSEM genes.results | /my/data/sample.genes.results |
-| counts_table_path | counts_table | string | Path to the raw counts table. Alternatively, pass in the input file with `--counts_table_path` | /my/data/Unnormalized_Counts.csv |
-| dge_table_path | dge_table | string | Path to the DGE table. Alternatively, pass in the input file with `--dge_table_path` | /my/data/differential_expression.csv |
+| trimmed_read1_path | trimmed_reads | string (url or local path) | Location of the trimmed reads file. For paired-end data, this specifies the forward trimmed reads fastq.gz file. | /my/data/sample_1_trimmed.fastq.gz |
+| trimmed_read2_path | trimmed_reads | string (url or local path) | Location of the trimmed reads file. For paired-end data, this specifies the reverse trimmed reads fastq.gz file. For single-end data, this column should be omitted. | /my/data/sample_2_trimmed.fastq.gz |
+| bam_path | bam_files | string (url or local path) | Location of the aligned BAM file: transcriptome BAM for `--mode default`, genomic BAM for `--mode microbes`. For default mode with `--strandedness auto`, also include "genome_bam_path" with the matching genomic BAM for the same sample. | /my/data/sample_aligned.bam |
+| genes_results_path | genes_results | string (url or local path) | Location of the RSEM genes.results file. | /my/data/sample.genes.results |
+| counts_table_path | counts_table | string (url or local path) | Location of the raw counts table file. Alternatively, pass in the input file with `--counts_table_path`. | /my/data/Unnormalized_Counts.csv |
+| dge_table_path | dge_table | string (url or local path) | Location of the DGE table file. Alternatively, pass in the input file with `--dge_table_path`. | /my/data/differential_expression.csv |
 
 ## Optional columns
 
